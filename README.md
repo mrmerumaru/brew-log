@@ -1,0 +1,88 @@
+# Brew Log
+
+A coffee consistency tracker. Log every variable of a brew, attach a photo of the
+cup, and look back at what produced your best results.
+
+React (Vite) + Supabase (Postgres, Auth, Storage). No custom backend server — the
+app talks to Supabase directly, secured by row-level security.
+
+See [docs/](docs/) for the PRD, system design, and the original step-by-step
+implementation guides.
+
+## Setup
+
+### 1. Install Node.js
+
+Not currently installed on this machine. Download the **LTS** version from
+[nodejs.org](https://nodejs.org), or with Homebrew:
+
+```bash
+brew install node
+```
+
+Verify with `node -v` — you should see a version number.
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com), named `brew-log`.
+2. **Storage → New bucket**, named `brew-photos`, with "Public bucket" **off**.
+3. **SQL Editor → New query**, paste the contents of
+   [supabase/schema.sql](supabase/schema.sql), and Run.
+4. **Project Settings → API**, copy the **Project URL** and **anon public** key.
+
+### 4. Add your keys
+
+Open `.env.local` (already created, and gitignored) and fill in the two values:
+
+```
+VITE_SUPABASE_URL=https://yourproject.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Never commit this file. Vite only reads it at startup, so restart the dev server
+after editing it.
+
+### 5. Run it
+
+```bash
+npm run dev
+```
+
+Open the printed address (usually `http://localhost:5173`), enter your email, and
+click the link it sends you.
+
+## Deploying
+
+Push to a private GitHub repo, then import it at [vercel.com](https://vercel.com).
+Vercel auto-detects Vite — the only thing you must add manually is the two
+environment variables from step 4, under **Environment Variables**. Every later
+`git push` redeploys automatically.
+
+## Project layout
+
+```
+src/
+  App.jsx            session check, Log/History tabs, sign out
+  Login.jsx          magic-link sign in
+  BrewForm.jsx       the brew entry form; saves to Supabase + uploads the photo
+  BrewHistory.jsx    past brews, newest first, with signed photo URLs
+  supabaseClient.js  the shared Supabase connection
+  tokens.js          colors, fonts, and the option lists (methods, flavors, …)
+supabase/schema.sql  table, RLS policies, storage policies
+docs/                PRD, system design, implementation guides, original mockup
+```
+
+## Status
+
+Done: structured logging form, magic-link auth, save to Postgres, photo upload,
+history list (milestones M1 + M2).
+
+Not built yet: share-card generation (M3); equipment/bean presets and history
+filtering (M4). Grind size, bean variety, and roast date appear in the PRD's data
+model but aren't in the schema or the form yet.
