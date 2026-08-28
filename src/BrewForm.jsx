@@ -19,6 +19,7 @@ import {
   num,
   isObjectUrl,
 } from "./brew";
+import { buildShareCard, shareCardFilename, shareOrDownload } from "./shareCard";
 
 const DEFAULTS = {
   method: "Pourover",
@@ -168,6 +169,11 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+  // The brew most recently saved from this form, kept so the share button can
+  // act on it after the fields have been cleared. { row, photoBlob }
+  const [lastSaved, setLastSaved] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   const fileInputRef = useRef(null);
   const savedTimerRef = useRef(null);
@@ -226,6 +232,31 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
     setPhoto(null);
     setPhotoFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleShare = async () => {
+    if (!lastSaved || sharing) return;
+    setSharing(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const card = await buildShareCard(lastSaved.row, lastSaved.photoBlob);
+      const result = await shareOrDownload(
+        card,
+        shareCardFilename(lastSaved.row),
+        `${lastSaved.row.method ?? "Brew"}${
+          lastSaved.row.bean_name ? ` · ${lastSaved.row.bean_name}` : ""
+        }`,
+      );
+      if (result === "downloaded") {
+        setNotice("Card saved to your downloads — your browser can't share files directly.");
+      }
+    } catch (err) {
+      setError(`Couldn't build the share card: ${err?.message ?? err}`);
+    } finally {
+      setSharing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -327,6 +358,9 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
         return;
       }
 
+      // Captured before resetForm clears the fields, so Share can still act on
+      // this brew once the form is blank again.
+      setLastSaved({ row, photoBlob: photoFile });
       setSaved(true);
       resetForm();
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
@@ -555,13 +589,26 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
             ) : (
               <button
                 type="button"
+                onClick={handleShare}
+                disabled={!lastSaved || sharing}
                 className="flex items-center justify-center w-11 rounded-sm shrink-0"
-                style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.rule }}
-                aria-label="Share (coming in M3)"
-                title="Share card generation comes in M3"
-                disabled
+                style={{
+                  border: `1px solid ${TOKENS.rule}`,
+                  color: lastSaved ? TOKENS.ink : TOKENS.rule,
+                  cursor: lastSaved ? "pointer" : "default",
+                }}
+                aria-label="Share the brew you just saved"
+                title={
+                  lastSaved
+                    ? "Share the brew you just saved"
+                    : "Save a brew first, then share it"
+                }
               >
-                <Share2 size={15} />
+                {sharing ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Share2 size={15} />
+                )}
               </button>
             )}
           </div>
@@ -574,6 +621,12 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
             role="alert"
           >
             {error}
+          </p>
+        )}
+
+        {notice && (
+          <p className="mt-4 text-[13px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
+            {notice}
           </p>
         )}
       </div>

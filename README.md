@@ -82,14 +82,22 @@ docs/                PRD, system design, implementation guides, original mockup
 
 ## Status
 
-**Milestones M1 + M2 complete and deployed.** Structured logging form,
-magic-link auth, save to Postgres, photo upload, history list, delete with photo
-cleanup. Verified end to end in production, including that a second account sees
-only its own brews.
+**Milestones M1–M3 complete.** Structured logging form, magic-link auth, save to
+Postgres, photo upload, history list, edit and delete, and share-card generation.
+Verified end to end in production, including that a second account sees only its
+own brews.
 
-Not built yet: share-card generation (M3); equipment/bean presets and history
-filtering (M4). Grind size, bean variety, and roast date appear in the PRD's data
-model but aren't in the schema or the form yet.
+Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
+1080×1350 (Instagram 4:5) rather than via html-to-image as the system design
+suggested — brew photos come from cross-origin signed URLs, which taint a canvas
+and break `toBlob()`. Downloading the blob through the Supabase SDK avoids that,
+and also lets us await `document.fonts.ready` so the card never renders in a
+fallback typeface. On phones the card goes to the OS share sheet via the Web
+Share API; elsewhere it downloads as a PNG.
+
+Not built yet: equipment/bean presets and history filtering (M4). Grind size,
+bean variety, and roast date appear in the PRD's data model but aren't in the
+schema or the form yet.
 
 Known limits: Supabase's built-in email sender is rate-limited to a few messages
 per hour, so sign-in links can be slow to arrive for new users — configure your
