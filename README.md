@@ -1,5 +1,7 @@
 # Brew Log
 
+**Live:** https://brew-log-xi.vercel.app/
+
 A coffee consistency tracker. Log every variable of a brew, attach a photo of the
 cup, and look back at what produced your best results.
 
@@ -80,9 +82,17 @@ docs/                PRD, system design, implementation guides, original mockup
 
 ## Status
 
-Done: structured logging form, magic-link auth, save to Postgres, photo upload,
-history list (milestones M1 + M2).
+**Milestones M1 + M2 complete and deployed.** Structured logging form,
+magic-link auth, save to Postgres, photo upload, history list, delete with photo
+cleanup. Verified end to end in production, including that a second account sees
+only its own brews.
 
 Not built yet: share-card generation (M3); equipment/bean presets and history
 filtering (M4). Grind size, bean variety, and roast date appear in the PRD's data
 model but aren't in the schema or the form yet.
+
+Known limits: Supabase's built-in email sender is rate-limited to a few messages
+per hour, so sign-in links can be slow to arrive for new users — configure your
+own SMTP under Authentication → Emails before sharing widely. Anyone with the URL
+can create an account (their data stays private to them); turn off signups under
+Authentication → Sign In / Providers to close that off.

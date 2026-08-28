@@ -29,6 +29,20 @@ export default function App() {
   const [tab, setTab] = useState("log");
   // Bumped on every successful save so the history list refetches when opened.
   const [refreshKey, setRefreshKey] = useState(0);
+  // { brew, photoUrl } while editing a saved brew, otherwise null. The photoUrl
+  // is the signed URL the history card already fetched, reused as the preview
+  // so the form doesn't have to sign it again.
+  const [editing, setEditing] = useState(null);
+
+  const startEdit = (brew, photoUrl) => {
+    setEditing({ brew, photoUrl: photoUrl ?? null });
+    setTab("log");
+  };
+
+  const finishEdit = () => {
+    setEditing(null);
+    setTab("history");
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -63,8 +77,18 @@ export default function App() {
         style={{ borderBottom: `1px solid ${TOKENS.rule}` }}
       >
         <div className="flex">
-          <Tab label="Log" active={tab === "log"} onClick={() => setTab("log")} />
-          <Tab label="History" active={tab === "history"} onClick={() => setTab("history")} />
+          <Tab
+            label={editing ? "Editing" : "Log"}
+            active={tab === "log"}
+            // Leaving the tab mid-edit would silently discard changes, so this
+            // exits edit mode explicitly rather than stranding the form.
+            onClick={() => (editing ? finishEdit() : setTab("log"))}
+          />
+          <Tab
+            label="History"
+            active={tab === "history"}
+            onClick={() => (editing ? finishEdit() : setTab("history"))}
+          />
         </div>
         <button
           type="button"
@@ -77,9 +101,18 @@ export default function App() {
       </div>
 
       {tab === "log" ? (
-        <BrewForm onSaved={() => setRefreshKey((k) => k + 1)} />
+        <BrewForm
+          // Remounting on mode change is what re-reads the initial field
+          // values, so editing a brew loads its data instead of keeping
+          // whatever was on screen.
+          key={editing?.brew.id ?? "new"}
+          brew={editing?.brew ?? null}
+          initialPhotoUrl={editing?.photoUrl ?? null}
+          onSaved={() => setRefreshKey((k) => k + 1)}
+          onExitEdit={finishEdit}
+        />
       ) : (
-        <BrewHistory refreshKey={refreshKey} />
+        <BrewHistory refreshKey={refreshKey} onEdit={startEdit} />
       )}
     </>,
   );

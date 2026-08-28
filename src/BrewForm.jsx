@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Camera, Share2, Check, Coffee, Loader2 } from "lucide-react";
+import { Camera, Share2, Check, Coffee, Loader2, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import {
   TOKENS,
@@ -12,6 +12,13 @@ import {
   FLAVORS,
   PHOTO_BUCKET,
 } from "./tokens";
+import {
+  parseBrewTime,
+  formatBrewTime,
+  fileExtension,
+  num,
+  isObjectUrl,
+} from "./brew";
 
 const DEFAULTS = {
   method: "Pourover",
@@ -31,42 +38,26 @@ const DEFAULTS = {
   notes: "",
 };
 
-// The Time field is labelled "min" and defaults to "2:45", so:
-//   "2:45" -> 165s   (m:ss, the common case)
-//   "2.5"  -> 150s   (bare number = decimal minutes, matching the label)
-// Returns null for anything unparseable, so the column stays null rather than 0.
-export function parseBrewTime(raw) {
-  if (typeof raw !== "string" && typeof raw !== "number") return null;
-  const value = String(raw).trim();
-  if (!value) return null;
-
-  if (value.includes(":")) {
-    const [m, s] = value.split(":");
-    const minutes = parseInt(m, 10);
-    const seconds = parseInt(s, 10);
-    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
-    return minutes * 60 + seconds;
-  }
-
-  const minutes = parseFloat(value);
-  if (Number.isNaN(minutes)) return null;
-  return Math.round(minutes * 60);
-}
-
-// The implementation guides hardcode ".jpg"; derive the real extension so a
-// PNG or HEIC upload isn't stored under a misleading name.
-export function fileExtension(file) {
-  const fromName = file?.name?.includes(".") ? file.name.split(".").pop() : null;
-  if (fromName && /^[a-z0-9]{1,5}$/i.test(fromName)) return fromName.toLowerCase();
-  const fromType = file?.type?.split("/")[1];
-  if (fromType && /^[a-z0-9]{1,5}$/i.test(fromType)) return fromType.toLowerCase();
-  return "jpg";
-}
-
-// parseFloat("") is NaN, which Postgres rejects for a numeric column.
-function num(value) {
-  const parsed = parseFloat(value);
-  return Number.isNaN(parsed) ? null : parsed;
+// Maps a saved row back onto the form's state shape. Numbers become strings
+// because the inputs are text fields, and brew_time_s becomes "m:ss".
+function formStateFromBrew(brew) {
+  return {
+    method: brew.method ?? DEFAULTS.method,
+    machineBrand: brew.machine_brand ?? "",
+    machineModel: brew.machine_model ?? "",
+    grinder: brew.grinder ?? "",
+    beanName: brew.bean_name ?? "",
+    origin: brew.origin ?? "",
+    process: brew.process ?? DEFAULTS.process,
+    roast: brew.roast_level ?? DEFAULTS.roast,
+    dose: brew.dose_g == null ? "" : String(brew.dose_g),
+    water: brew.water_g == null ? "" : String(brew.water_g),
+    temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
+    time: formatBrewTime(brew.brew_time_s) ?? "",
+    flavors: brew.flavor_tags ?? [],
+    rating: brew.rating ?? 0,
+    notes: brew.notes ?? "",
+  };
 }
 
 function StepLabel({ n, title, done }) {
@@ -146,24 +137,33 @@ function Divider() {
   return <div className="my-7" style={{ borderTop: `1px dashed ${TOKENS.rule}` }} />;
 }
 
-export default function BrewForm({ onSaved }) {
-  const [method, setMethod] = useState(DEFAULTS.method);
-  const [machineBrand, setMachineBrand] = useState(DEFAULTS.machineBrand);
-  const [machineModel, setMachineModel] = useState(DEFAULTS.machineModel);
-  const [grinder, setGrinder] = useState(DEFAULTS.grinder);
-  const [beanName, setBeanName] = useState(DEFAULTS.beanName);
-  const [origin, setOrigin] = useState(DEFAULTS.origin);
-  const [process, setProcess] = useState(DEFAULTS.process);
-  const [roast, setRoast] = useState(DEFAULTS.roast);
-  const [dose, setDose] = useState(DEFAULTS.dose);
-  const [water, setWater] = useState(DEFAULTS.water);
-  const [temp, setTemp] = useState(DEFAULTS.temp);
-  const [time, setTime] = useState(DEFAULTS.time);
-  const [flavors, setFlavors] = useState(DEFAULTS.flavors);
-  const [rating, setRating] = useState(DEFAULTS.rating);
-  const [notes, setNotes] = useState(DEFAULTS.notes);
+// `brew` null = logging a new brew. `brew` set = editing that saved row.
+// App gives this component a key tied to the brew id, so switching between
+// modes remounts it and these initial values are re-read.
+export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved, onExitEdit }) {
+  const isEditing = Boolean(brew);
+  const init = isEditing ? formStateFromBrew(brew) : DEFAULTS;
 
-  const [photo, setPhoto] = useState(null); // preview object URL
+  const [method, setMethod] = useState(init.method);
+  const [machineBrand, setMachineBrand] = useState(init.machineBrand);
+  const [machineModel, setMachineModel] = useState(init.machineModel);
+  const [grinder, setGrinder] = useState(init.grinder);
+  const [beanName, setBeanName] = useState(init.beanName);
+  const [origin, setOrigin] = useState(init.origin);
+  const [process, setProcess] = useState(init.process);
+  const [roast, setRoast] = useState(init.roast);
+  const [dose, setDose] = useState(init.dose);
+  const [water, setWater] = useState(init.water);
+  const [temp, setTemp] = useState(init.temp);
+  const [time, setTime] = useState(init.time);
+  const [flavors, setFlavors] = useState(init.flavors);
+  const [rating, setRating] = useState(init.rating);
+  const [notes, setNotes] = useState(init.notes);
+
+  // In edit mode this starts as a signed URL from Storage; it only becomes a
+  // blob: URL if a replacement file is picked. isObjectUrl keeps the two apart
+  // so we never try to revoke a remote URL.
+  const [photo, setPhoto] = useState(initialPhotoUrl);
   const [photoFile, setPhotoFile] = useState(null); // the actual File, needed to upload
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -183,7 +183,7 @@ export default function BrewForm({ onSaved }) {
   // changes or the form unmounts.
   useEffect(() => {
     return () => {
-      if (photo) URL.revokeObjectURL(photo);
+      if (isObjectUrl(photo)) URL.revokeObjectURL(photo);
     };
   }, [photo]);
 
@@ -201,7 +201,7 @@ export default function BrewForm({ onSaved }) {
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (photo) URL.revokeObjectURL(photo);
+    if (isObjectUrl(photo)) URL.revokeObjectURL(photo);
     setPhoto(URL.createObjectURL(file));
     setPhotoFile(file); // the preview URL can't be uploaded — keep the File too
   };
@@ -222,7 +222,7 @@ export default function BrewForm({ onSaved }) {
     setFlavors(DEFAULTS.flavors);
     setRating(DEFAULTS.rating);
     setNotes(DEFAULTS.notes);
-    if (photo) URL.revokeObjectURL(photo);
+    if (isObjectUrl(photo)) URL.revokeObjectURL(photo);
     setPhoto(null);
     setPhotoFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -245,62 +245,90 @@ export default function BrewForm({ onSaved }) {
         return;
       }
 
-      const { data: brew, error: insertError } = await supabase
-        .from("brews")
-        .insert({
-          user_id: user.id,
-          method,
-          machine_brand: machineBrand,
-          machine_model: machineModel,
-          grinder,
-          bean_name: beanName,
-          origin,
-          process,
-          roast_level: roast,
-          dose_g: num(dose),
-          water_g: num(water),
-          water_temp_c: num(temp),
-          brew_time_s: parseBrewTime(time),
-          flavor_tags: flavors,
-          rating,
-          notes,
-        })
-        .select()
-        .single();
+      // Same column values either way; only user_id differs, and an edit must
+      // never reassign ownership.
+      const fields = {
+        method,
+        machine_brand: machineBrand,
+        machine_model: machineModel,
+        grinder,
+        bean_name: beanName,
+        origin,
+        process,
+        roast_level: roast,
+        dose_g: num(dose),
+        water_g: num(water),
+        water_temp_c: num(temp),
+        brew_time_s: parseBrewTime(time),
+        flavor_tags: flavors,
+        rating,
+        notes,
+      };
 
-      if (insertError) {
-        setError(insertError.message);
+      const { data: row, error: writeError } = isEditing
+        ? await supabase.from("brews").update(fields).eq("id", brew.id).select().single()
+        : await supabase
+            .from("brews")
+            .insert({ user_id: user.id, ...fields })
+            .select()
+            .single();
+
+      if (writeError) {
+        setError(writeError.message);
         return;
       }
 
+      const verb = isEditing ? "Changes saved" : "Brew saved";
+
       if (photoFile) {
-        const path = `${user.id}/${brew.id}.${fileExtension(photoFile)}`;
+        const path = `${user.id}/${row.id}.${fileExtension(photoFile)}`;
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
-          .upload(path, photoFile, { contentType: photoFile.type || undefined });
+          // upsert so replacing a photo on an existing brew overwrites cleanly
+          // instead of failing on a name that already exists.
+          .upload(path, photoFile, {
+            contentType: photoFile.type || undefined,
+            upsert: true,
+          });
 
         if (uploadError) {
-          // The brew itself is already saved — say so rather than implying total failure.
-          setError(`Brew saved, but the photo didn't upload: ${uploadError.message}`);
+          // The brew row is already written — say so rather than implying total failure.
+          setError(`${verb}, but the photo didn't upload: ${uploadError.message}`);
           onSaved?.();
           return;
         }
 
-        const { error: pathError } = await supabase
-          .from("brews")
-          .update({ photo_path: path })
-          .eq("id", brew.id);
-
-        if (pathError) {
-          setError(`Brew and photo saved, but linking them failed: ${pathError.message}`);
-          onSaved?.();
-          return;
+        // A replacement with a different extension lands at a new path, leaving
+        // the old file orphaned in the bucket. Clean it up (best effort).
+        const previousPath = isEditing ? brew.photo_path : null;
+        if (previousPath && previousPath !== path) {
+          await supabase.storage.from(PHOTO_BUCKET).remove([previousPath]);
         }
+
+        if (path !== row.photo_path) {
+          const { error: pathError } = await supabase
+            .from("brews")
+            .update({ photo_path: path })
+            .eq("id", row.id);
+
+          if (pathError) {
+            setError(`${verb} and photo uploaded, but linking them failed: ${pathError.message}`);
+            onSaved?.();
+            return;
+          }
+        }
+      }
+
+      onSaved?.();
+
+      if (isEditing) {
+        // Nothing to reset — hand the user back to the list they came from.
+        onExitEdit?.();
+        return;
       }
 
       setSaved(true);
       resetForm();
-      onSaved?.();
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setError(err?.message ?? "Something went wrong saving this brew.");
@@ -334,7 +362,7 @@ export default function BrewForm({ onSaved }) {
               letterSpacing: "0.01em",
             }}
           >
-            Brew Log
+            {isEditing ? "Edit Brew" : "Brew Log"}
           </span>
         </div>
         <div className="text-right">
@@ -503,18 +531,39 @@ export default function BrewForm({ onSaved }) {
               }}
             >
               {saving && <Loader2 size={13} className="animate-spin" />}
-              {saving ? "Saving…" : saved ? "Saved ✓" : "Save Brew"}
+              {saving
+                ? "Saving…"
+                : saved
+                  ? "Saved ✓"
+                  : isEditing
+                    ? "Save Changes"
+                    : "Save Brew"}
             </button>
-            <button
-              type="button"
-              className="flex items-center justify-center w-11 rounded-sm shrink-0"
-              style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.rule }}
-              aria-label="Share (coming in M3)"
-              title="Share card generation comes in M3"
-              disabled
-            >
-              <Share2 size={15} />
-            </button>
+
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={onExitEdit}
+                disabled={saving}
+                className="flex items-center justify-center w-11 rounded-sm shrink-0"
+                style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.inkFaint }}
+                aria-label="Cancel editing"
+                title="Cancel"
+              >
+                <X size={15} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex items-center justify-center w-11 rounded-sm shrink-0"
+                style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.rule }}
+                aria-label="Share (coming in M3)"
+                title="Share card generation comes in M3"
+                disabled
+              >
+                <Share2 size={15} />
+              </button>
+            )}
           </div>
         </div>
 

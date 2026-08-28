@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Coffee, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Coffee, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
+import { formatBrewTime, ratioOf } from "./brew";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
 
@@ -13,18 +14,6 @@ function formatDate(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function formatBrewTime(seconds) {
-  if (seconds == null) return null;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function ratioOf(brew) {
-  if (!brew.dose_g || !brew.water_g) return null;
-  return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
 }
 
 function Meta({ label, value }) {
@@ -41,7 +30,7 @@ function Meta({ label, value }) {
   );
 }
 
-function BrewCard({ brew, photoUrl, onDelete, deleting }) {
+function BrewCard({ brew, photoUrl, onEdit, onDelete, deleting }) {
   const ratio = ratioOf(brew);
   const brewTime = formatBrewTime(brew.brew_time_s);
   // Deleting is irreversible, so the trash icon arms a confirm rather than
@@ -176,15 +165,26 @@ function BrewCard({ brew, photoUrl, onDelete, deleting }) {
                 </button>
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConfirming(true)}
-                aria-label={`Delete this ${brew.method || "brew"}`}
-                title="Delete brew"
-                style={{ color: TOKENS.rule }}
-              >
-                <Trash2 size={13} />
-              </button>
+              <span className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onEdit(brew, photoUrl)}
+                  aria-label={`Edit this ${brew.method || "brew"}`}
+                  title="Edit brew"
+                  style={{ color: TOKENS.inkFaint }}
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  aria-label={`Delete this ${brew.method || "brew"}`}
+                  title="Delete brew"
+                  style={{ color: TOKENS.rule }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </span>
             )}
           </div>
         </div>
@@ -193,7 +193,7 @@ function BrewCard({ brew, photoUrl, onDelete, deleting }) {
   );
 }
 
-export default function BrewHistory({ refreshKey }) {
+export default function BrewHistory({ refreshKey, onEdit }) {
   const [brews, setBrews] = useState([]);
   const [photoUrls, setPhotoUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -342,6 +342,7 @@ export default function BrewHistory({ refreshKey }) {
             key={brew.id}
             brew={brew}
             photoUrl={photoUrls[brew.photo_path]}
+            onEdit={onEdit}
             onDelete={handleDelete}
             deleting={deletingId === brew.id}
           />
