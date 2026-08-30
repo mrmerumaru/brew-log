@@ -5,6 +5,10 @@
 // canvas tainting and blank output, and web-font loading races the render. So
 // the card is painted directly onto a canvas from a Blob we fetched ourselves:
 // no CORS surprises, fonts guaranteed loaded, exact output dimensions.
+//
+// Drawing is split from blob generation so the share sheet can redraw a live
+// preview on every pointer move while the user repositions the photo, and only
+// pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { formatBrewTime, ratioOf } from "./brew";
@@ -18,6 +22,13 @@ export const CARD_RATIOS = {
 
 export const DEFAULT_RATIO = "9:16";
 
+// scale 1 = "cover" fit. offsets are normalised to -1..1 of the maximum travel
+// available at the current scale, so they stay valid when the scale or the
+// aspect changes and can never expose an empty edge.
+export const DEFAULT_TRANSFORM = { scale: 1, offsetX: 0, offsetY: 0 };
+
+export const MAX_ZOOM = 3;
+
 const PAD = 72;
 
 // Vertical rhythm. Block heights are measured, not guessed, so the layout can
@@ -29,6 +40,8 @@ const MAX_CHIP_ROWS = 2;
 // Cap so a tall card doesn't crop landscape photos to a narrow slot.
 const MAX_PHOTO_RATIO = 1.25;
 
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
 function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -39,12 +52,27 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// object-fit: cover — fill the box, cropping the overflow, never distorting.
-function drawCover(ctx, img, x, y, w, h) {
-  const scale = Math.max(w / img.width, h / img.height);
+/**
+ * Draw the photo to fill the frame, honouring the user's zoom and pan.
+ * Returns the travel available at this scale so the caller can convert pointer
+ * movement into offset changes.
+ */
+function drawPhoto(ctx, img, x, y, w, h, transform) {
+  const cover = Math.max(w / img.width, h / img.height);
+  const scale = cover * Math.max(1, transform.scale);
   const dw = img.width * scale;
   const dh = img.height * scale;
-  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+
+  // How far the image can slide before an edge would enter the frame.
+  const maxOffsetX = Math.max(0, (dw - w) / 2);
+  const maxOffsetY = Math.max(0, (dh - h) / 2);
+
+  const ox = clamp(transform.offsetX, -1, 1) * maxOffsetX;
+  const oy = clamp(transform.offsetY, -1, 1) * maxOffsetY;
+
+  ctx.drawImage(img, x + (w - dw) / 2 + ox, y + (h - dh) / 2 + oy, dw, dh);
+
+  return { maxOffsetX, maxOffsetY };
 }
 
 // Measure-then-draw: work out which chips fit on which row before committing to
@@ -86,7 +114,19 @@ function truncate(ctx, text, maxWidth) {
   return out + "…";
 }
 
-async function decode(blob) {
+/** Canvas won't wait for web fonts; without this the card renders in a fallback face. */
+export async function ensureFonts() {
+  if (document.fonts?.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // proceed with whatever is available
+    }
+  }
+}
+
+/** Turn a photo Blob into something drawable. Resolves null if it can't be read. */
+export async function decodePhoto(blob) {
   if (!blob) return null;
   try {
     if (typeof createImageBitmap === "function") return await createImageBitmap(blob);
@@ -109,31 +149,16 @@ async function decode(blob) {
 }
 
 /**
- * Paint a share card for one brew.
- * @param {object} brew  a row from the `brews` table
- * @param {Blob|null} photoBlob  the brew photo, already downloaded
- * @param {keyof CARD_RATIOS} ratio  output aspect
- * @returns {Promise<Blob>} a PNG
+ * Paint one brew's card onto an existing context. Synchronous, so it's safe to
+ * call at pointer-move rate.
+ *
+ * @returns {{ photo: null | { maxOffsetX: number, maxOffsetY: number } }}
+ *   travel available for panning, in card pixels
  */
-export async function buildShareCard(brew, photoBlob, ratio = DEFAULT_RATIO) {
+export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform = DEFAULT_TRANSFORM) {
   const { w: W, h: H } = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
-  // Without this the card renders in a fallback face — the web fonts may not
-  // have loaded yet, and canvas won't wait for them.
-  if (document.fonts?.ready) {
-    try {
-      await document.fonts.ready;
-    } catch {
-      // proceed with whatever is available
-    }
-  }
 
-  const img = await decode(photoBlob);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-
+  ctx.save();
   ctx.fillStyle = TOKENS.paper;
   ctx.fillRect(0, 0, W, H);
 
@@ -172,6 +197,7 @@ export async function buildShareCard(brew, photoBlob, ratio = DEFAULT_RATIO) {
   let y = contentBottom - contentH;
 
   // ---- Photo -------------------------------------------------------------
+  let photoMetrics = null;
   if (img) {
     const available = y - PAD - 56;
     const photoH = Math.min(available, inner * MAX_PHOTO_RATIO);
@@ -180,7 +206,7 @@ export async function buildShareCard(brew, photoBlob, ratio = DEFAULT_RATIO) {
     ctx.save();
     roundRectPath(ctx, PAD, photoY, inner, photoH, 8);
     ctx.clip();
-    drawCover(ctx, img, PAD, photoY, inner, photoH);
+    photoMetrics = drawPhoto(ctx, img, PAD, photoY, inner, photoH, transform);
     ctx.restore();
 
     ctx.strokeStyle = TOKENS.rule;
@@ -281,6 +307,21 @@ export async function buildShareCard(brew, photoBlob, ratio = DEFAULT_RATIO) {
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(date, W - PAD - ctx.measureText(date).width, footerTextY);
   }
+
+  ctx.restore();
+  return { photo: photoMetrics };
+}
+
+/** Render a card to a PNG Blob, at full output resolution. */
+export async function renderCardBlob(brew, img, ratio = DEFAULT_RATIO, transform = DEFAULT_TRANSFORM) {
+  await ensureFonts();
+
+  const { w, h } = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  drawShareCard(canvas.getContext("2d"), brew, img, ratio, transform);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

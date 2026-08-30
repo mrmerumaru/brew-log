@@ -1,58 +1,87 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import {
   CARD_RATIOS,
   DEFAULT_RATIO,
-  buildShareCard,
+  DEFAULT_TRANSFORM,
+  MAX_ZOOM,
+  decodePhoto,
+  drawShareCard,
+  ensureFonts,
+  renderCardBlob,
   shareCardFilename,
   shareOrDownload,
 } from "./shareCard";
 
 const RATIO_KEYS = Object.keys(CARD_RATIOS);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /**
- * Preview a brew's share card, pick an aspect, then hand it to the OS share
- * sheet (or download it). Shared by the form and the history list so the two
- * entry points can't drift apart.
+ * Preview a brew's share card, choose an aspect, reposition the photo, then
+ * hand it to the OS share sheet (or download it). Shared by the form and the
+ * history list so the two entry points can't drift apart.
  */
 export default function ShareSheet({ brew, photoBlob, onClose }) {
   const [ratio, setRatio] = useState(DEFAULT_RATIO);
-  const [preview, setPreview] = useState(null); // { url, blob }
-  const [building, setBuilding] = useState(true);
+  const [transform, setTransform] = useState(DEFAULT_TRANSFORM);
+  const [img, setImg] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  // Mirrors travelRef for rendering. A ref alone wouldn't re-render the hint
+  // text when zooming first unlocks panning.
+  const [canPan, setCanPan] = useState(false);
 
-  // Rebuild whenever the aspect changes. Each render produces a fresh object
-  // URL, so the previous one is revoked on cleanup to avoid leaking blobs.
+  const canvasRef = useRef(null);
+  // Pan travel from the last draw, in card pixels — needed to convert pointer
+  // movement into normalised offsets.
+  const travelRef = useRef({ maxOffsetX: 0, maxOffsetY: 0 });
+  const dragRef = useRef(null);
+
+  const { w: cardW, h: cardH } = CARD_RATIOS[ratio];
+
+  // Decode the photo and load fonts once, not per redraw.
   useEffect(() => {
     let cancelled = false;
-    let url = null;
-
-    setBuilding(true);
-    setError(null);
-
-    buildShareCard(brew, photoBlob, ratio)
-      .then((blob) => {
+    setLoading(true);
+    Promise.all([ensureFonts(), decodePhoto(photoBlob)])
+      .then(([, decoded]) => {
         if (cancelled) return;
-        url = URL.createObjectURL(blob);
-        setPreview({ url, blob });
+        setImg(decoded);
+        setLoading(false);
       })
-      .catch((err) => {
-        if (!cancelled) setError(`Couldn't build the card: ${err?.message ?? err}`);
-      })
-      .finally(() => {
-        if (!cancelled) setBuilding(false);
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
-
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
     };
-  }, [brew, photoBlob, ratio]);
+  }, [photoBlob]);
 
-  // Escape closes, matching the expectation for any modal.
+  // Redraw whenever anything visible changes. Synchronous and cheap enough to
+  // run at pointer-move rate.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || loading) return;
+
+    canvas.width = cardW;
+    canvas.height = cardH;
+
+    try {
+      const { photo } = drawShareCard(canvas.getContext("2d"), brew, img, ratio, transform);
+      travelRef.current = photo ?? { maxOffsetX: 0, maxOffsetY: 0 };
+
+      // Sub-pixel travel isn't worth advertising as draggable.
+      const next = Boolean(photo) && (photo.maxOffsetX > 0.5 || photo.maxOffsetY > 0.5);
+      // React bails out when the value is unchanged, so this can't loop.
+      setCanPan((prev) => (prev === next ? prev : next));
+    } catch (err) {
+      setError(`Couldn't draw the card: ${err?.message ?? err}`);
+    }
+  }, [brew, img, ratio, transform, loading, cardW, cardH]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -61,15 +90,52 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const handleSend = async () => {
-    if (!preview || sending) return;
+  const handlePointerDown = (e) => {
+    if (!img) return;
+    const canvas = canvasRef.current;
+    canvas.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      offsetX: transform.offsetX,
+      offsetY: transform.offsetY,
+      // The canvas is displayed smaller than the card, so pointer pixels must
+      // be scaled up into card pixels before converting to an offset.
+      scale: cardW / canvas.getBoundingClientRect().width,
+    };
+  };
+
+  const handlePointerMove = (e) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const { maxOffsetX, maxOffsetY } = travelRef.current;
+    const dx = (e.clientX - drag.x) * drag.scale;
+    const dy = (e.clientY - drag.y) * drag.scale;
+
+    setTransform((t) => ({
+      ...t,
+      offsetX: maxOffsetX > 0 ? clamp(drag.offsetX + dx / maxOffsetX, -1, 1) : 0,
+      offsetY: maxOffsetY > 0 ? clamp(drag.offsetY + dy / maxOffsetY, -1, 1) : 0,
+    }));
+  };
+
+  const endDrag = (e) => {
+    if (!dragRef.current) return;
+    canvasRef.current?.releasePointerCapture?.(e.pointerId);
+    dragRef.current = null;
+  };
+
+  const handleSend = useCallback(async () => {
+    if (sending || loading) return;
     setSending(true);
     setError(null);
     setNotice(null);
 
     try {
+      const blob = await renderCardBlob(brew, img, ratio, transform);
       const result = await shareOrDownload(
-        preview.blob,
+        blob,
         shareCardFilename(brew, ratio),
         `${brew.method ?? "Brew"}${brew.bean_name ? ` · ${brew.bean_name}` : ""}`,
       );
@@ -79,15 +145,15 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
         onClose();
       }
       // 'cancelled' means the user dismissed the OS sheet: stay open so they
-      // can try the other aspect rather than starting over.
+      // can adjust and try again rather than starting over.
     } catch (err) {
       setError(`Couldn't share: ${err?.message ?? err}`);
     } finally {
       setSending(false);
     }
-  };
+  }, [brew, img, ratio, transform, sending, loading, onClose]);
 
-  const { w, h } = CARD_RATIOS[ratio];
+  const busy = loading || sending;
 
   return (
     <div
@@ -101,7 +167,6 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       <div
         className="w-full max-w-[380px] max-h-full overflow-y-auto rounded-sm"
         style={{ background: TOKENS.card, border: `1px solid ${TOKENS.rule}` }}
-        // Clicks inside must not reach the backdrop's close handler.
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -158,45 +223,96 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             })}
           </div>
 
-          <p
-            className="mb-4 text-[12px]"
-            style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.5 }}
-          >
-            {CARD_RATIOS[ratio].note}
-          </p>
-
           {/* Reserve the exact aspect so switching doesn't make the dialog jump. */}
           <div
-            className="w-full mb-4 flex items-center justify-center overflow-hidden rounded-sm"
+            className="w-full mb-3 flex items-center justify-center overflow-hidden rounded-sm"
             style={{
-              aspectRatio: `${w} / ${h}`,
+              aspectRatio: `${cardW} / ${cardH}`,
               background: TOKENS.paper,
               border: `1px solid ${TOKENS.rule}`,
             }}
           >
-            {building || !preview ? (
+            {loading ? (
               <Loader2 size={18} className="animate-spin" style={{ color: TOKENS.inkFaint }} />
             ) : (
-              <img
-                src={preview.url}
-                alt="Share card preview"
-                className="w-full h-full object-contain"
+              <canvas
+                ref={canvasRef}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                className="w-full h-full"
+                style={{
+                  // touchAction none stops the browser scrolling the dialog
+                  // while a drag is in progress.
+                  touchAction: img ? "none" : "auto",
+                  cursor: canPan ? "grab" : "default",
+                }}
               />
             )}
           </div>
 
+          {img ? (
+            <>
+              <div className="flex items-center gap-3 mb-1">
+                <span
+                  className="shrink-0"
+                  style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                >
+                  ZOOM
+                </span>
+                <input
+                  type="range"
+                  min="1"
+                  max={MAX_ZOOM}
+                  step="0.01"
+                  value={transform.scale}
+                  onChange={(e) =>
+                    setTransform((t) => ({ ...t, scale: parseFloat(e.target.value) }))
+                  }
+                  className="flex-1"
+                  style={{ accentColor: TOKENS.green }}
+                  aria-label="Zoom photo"
+                />
+                <button
+                  type="button"
+                  onClick={() => setTransform(DEFAULT_TRANSFORM)}
+                  className="shrink-0 text-[10px] uppercase tracking-[0.08em]"
+                  style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
+                >
+                  Reset
+                </button>
+              </div>
+              <p
+                className="mb-4 text-[11px]"
+                style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
+              >
+                {canPan
+                  ? "Drag the photo to reposition it."
+                  : "Zoom in to reposition the photo."}
+              </p>
+            </>
+          ) : (
+            <p
+              className="mb-4 text-[12px]"
+              style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.5 }}
+            >
+              {CARD_RATIOS[ratio].note}
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleSend}
-            disabled={building || sending || !preview}
+            disabled={busy}
             className="w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
               background: TOKENS.green,
               color: TOKENS.card,
-              opacity: building || sending || !preview ? 0.6 : 1,
-              cursor: building || sending || !preview ? "default" : "pointer",
+              opacity: busy ? 0.6 : 1,
+              cursor: busy ? "default" : "pointer",
             }}
           >
             {sending && <Loader2 size={13} className="animate-spin" />}
