@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
@@ -15,6 +15,91 @@ function formatDate(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMinRating, onClear, active }) {
+  // Only offer methods that actually appear in your history — a filter that
+  // can only ever return nothing isn't worth showing.
+  const methods = useMemo(
+    () => [...new Set(brews.map((b) => b.method).filter(Boolean))],
+    [brews],
+  );
+
+  return (
+    <div
+      className="mb-4 pb-4"
+      style={{ borderBottom: `1px dashed ${TOKENS.rule}` }}
+    >
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search beans, origin, roaster…"
+        className="w-full bg-transparent outline-none pb-1.5 text-[14px] mb-3"
+        style={{
+          fontFamily: SERIF,
+          color: TOKENS.ink,
+          borderBottom: `1px solid ${TOKENS.rule}`,
+        }}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {methods.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMethod(method === m ? null : m)}
+            className="px-2.5 py-1 rounded-full text-[12px]"
+            style={{
+              fontFamily: SERIF,
+              border: `1px solid ${method === m ? TOKENS.green : TOKENS.rule}`,
+              background: method === m ? TOKENS.greenSoft : "transparent",
+              color: method === m ? TOKENS.green : TOKENS.inkFaint,
+            }}
+          >
+            {m}
+          </button>
+        ))}
+
+        <span className="flex items-center gap-1 ml-auto">
+          <span
+            className="mr-1"
+            style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+          >
+            MIN
+          </span>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <button
+              key={i}
+              type="button"
+              // Tapping the active threshold clears it, so there's always a way
+              // back to "any rating" without hunting for the reset.
+              onClick={() => setMinRating(minRating === i ? 0 : i)}
+              aria-label={`At least ${i} stars`}
+              style={{
+                fontFamily: MONO,
+                fontSize: 15,
+                lineHeight: 1,
+                color: i <= minRating ? TOKENS.amber : TOKENS.rule,
+              }}
+            >
+              ●
+            </button>
+          ))}
+        </span>
+      </div>
+
+      {active && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-3 text-[10px] uppercase tracking-[0.08em]"
+          style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
+        >
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
 }
 
 function Meta({ label, value }) {
@@ -216,6 +301,37 @@ export default function BrewHistory({ refreshKey, onEdit }) {
   const [deletingId, setDeletingId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
   const [notice, setNotice] = useState(null);
+
+  const [method, setMethod] = useState(null);
+  const [query, setQuery] = useState("");
+  const [minRating, setMinRating] = useState(0);
+
+  const filtersActive = Boolean(method) || query.trim() !== "" || minRating > 0;
+
+  const clearFilters = () => {
+    setMethod(null);
+    setQuery("");
+    setMinRating(0);
+  };
+
+  // Filtering happens client-side over the rows already fetched. At this scale
+  // that's instant and avoids a round trip per keystroke; if history ever grows
+  // into the thousands this is the thing to move server-side.
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return brews.filter((b) => {
+      if (method && b.method !== method) return false;
+      if (minRating > 0 && (b.rating ?? 0) < minRating) return false;
+      if (q) {
+        const haystack = [b.bean_name, b.origin, b.notes, b.process, b.roast_level]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [brews, method, query, minRating]);
   // Kept separate from `error`: a failed delete should appear beneath the list,
   // not replace it, since everything else on screen is still valid.
   const [deleteError, setDeleteError] = useState(null);
@@ -369,12 +485,29 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
   return (
     <div className="w-full max-w-[480px]">
+      {/* One brew can't be filtered into anything useful — don't add the chrome. */}
+      {brews.length > 1 && (
+        <FilterBar
+          brews={brews}
+          method={method}
+          setMethod={setMethod}
+          query={query}
+          setQuery={setQuery}
+          minRating={minRating}
+          setMinRating={setMinRating}
+          onClear={clearFilters}
+          active={filtersActive}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <span
           className="text-[10px] uppercase"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
         >
-          {brews.length} {brews.length === 1 ? "brew" : "brews"}
+          {filtersActive
+            ? `${visible.length} of ${brews.length} brews`
+            : `${brews.length} ${brews.length === 1 ? "brew" : "brews"}`}
         </span>
         <button
           type="button"
@@ -387,8 +520,16 @@ export default function BrewHistory({ refreshKey, onEdit }) {
         </button>
       </div>
 
+      {visible.length === 0 ? (
+        <p
+          className="py-10 text-center text-[14px]"
+          style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
+        >
+          No brews match those filters.
+        </p>
+      ) : (
       <ul className="flex flex-col gap-3">
-        {brews.map((brew) => (
+        {visible.map((brew) => (
           <BrewCard
             key={brew.id}
             brew={brew}
@@ -401,6 +542,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
           />
         ))}
       </ul>
+      )}
 
       {deleteError && (
         <p

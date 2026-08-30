@@ -52,6 +52,32 @@ export function ratioOf(brew) {
   return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
 }
 
+// Distinct non-empty values per text field, most-recently-used first, for the
+// form's autocomplete. Derived from brews you've already logged, so there's no
+// separate preset table to keep in sync.
+export function suggestionsFrom(rows = []) {
+  const fields = {
+    machineBrand: "machine_brand",
+    machineModel: "machine_model",
+    grinder: "grinder",
+    beanName: "bean_name",
+    origin: "origin",
+  };
+
+  const out = {};
+  for (const [key, column] of Object.entries(fields)) {
+    const seen = new Set();
+    // rows arrive newest-first, so first sighting wins and recent entries
+    // surface at the top of the dropdown.
+    for (const row of rows) {
+      const value = row?.[column]?.trim();
+      if (value) seen.add(value);
+    }
+    out[key] = [...seen];
+  }
+  return out;
+}
+
 // Object URLs need revoking; remote signed URLs must be left alone. When
 // editing, the preview starts as a signed URL from Storage and only becomes a
 // blob: URL if the user picks a replacement file.

@@ -82,10 +82,18 @@ docs/                PRD, system design, implementation guides, original mockup
 
 ## Status
 
-**Milestones M1–M3 complete.** Structured logging form, magic-link auth, save to
-Postgres, photo upload, history list, edit and delete, and share-card generation.
-Verified end to end in production, including that a second account sees only its
-own brews.
+**Milestones M1–M4 complete.** Structured logging form, Google and magic-link
+auth, save to Postgres, photo upload, history list with filtering, edit and
+delete, share-card generation, and setup carry-forward. Verified end to end in
+production, including that a second account sees only its own brews.
+
+Presets are handled without the separate `beans`/`equipment` tables the system
+design anticipated: a new brew inherits method, equipment, beans and parameters
+from your most recent one (tasting notes and photo are always cleared), and the
+text fields autocomplete from distinct values across your history via
+`suggestionsFrom` in [src/brew.js](src/brew.js). No migration, no joins, and it
+works retroactively on brews already logged. Revisit the normalized tables only
+if you need named setups that exist independently of any brew.
 
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design

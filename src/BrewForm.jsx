@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useId } from "react";
 import { Camera, Share2, Check, Coffee, Loader2, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import {
@@ -61,6 +61,18 @@ function formStateFromBrew(brew) {
   };
 }
 
+// Carrying a setup forward to a *new* brew: keep method, equipment, beans and
+// parameters (the tedious, slow-changing parts) but clear the tasting notes and
+// photo, which describe one specific cup and must never be inherited.
+function carriedForwardFrom(brew) {
+  return {
+    ...formStateFromBrew(brew),
+    flavors: DEFAULTS.flavors,
+    rating: DEFAULTS.rating,
+    notes: "",
+  };
+}
+
 function StepLabel({ n, title, done }) {
   return (
     <div className="flex items-center gap-3 mb-4">
@@ -103,7 +115,12 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, mono, suffix }) {
+function Field({ label, value, onChange, placeholder, mono, suffix, suggestions }) {
+  // A native <datalist> gives autocomplete without a custom dropdown, and still
+  // lets you type a value that isn't in the list.
+  const listId = useId();
+  const hasSuggestions = suggestions?.length > 0;
+
   return (
     <label className="flex flex-col gap-1.5">
       <span
@@ -117,6 +134,7 @@ function Field({ label, value, onChange, placeholder, mono, suffix }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          list={hasSuggestions ? listId : undefined}
           className="w-full bg-transparent outline-none pb-1.5 text-[14px]"
           style={{
             fontFamily: mono ? MONO : SERIF,
@@ -130,6 +148,13 @@ function Field({ label, value, onChange, placeholder, mono, suffix }) {
           </span>
         )}
       </div>
+      {hasSuggestions && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
     </label>
   );
 }
@@ -141,9 +166,20 @@ function Divider() {
 // `brew` null = logging a new brew. `brew` set = editing that saved row.
 // App gives this component a key tied to the brew id, so switching between
 // modes remounts it and these initial values are re-read.
-export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved, onExitEdit }) {
+export default function BrewForm({
+  brew = null,
+  initialPhotoUrl = null,
+  previousBrew = null,
+  suggestions = {},
+  onSaved,
+  onExitEdit,
+}) {
   const isEditing = Boolean(brew);
-  const init = isEditing ? formStateFromBrew(brew) : DEFAULTS;
+  const init = isEditing
+    ? formStateFromBrew(brew)
+    : previousBrew
+      ? carriedForwardFrom(previousBrew)
+      : DEFAULTS;
 
   const [method, setMethod] = useState(init.method);
   const [machineBrand, setMachineBrand] = useState(init.machineBrand);
@@ -174,6 +210,9 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
   const [lastSaved, setLastSaved] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [notice, setNotice] = useState(null);
+  // Whether the fields on screen came from a previous brew rather than being
+  // typed fresh — drives the "carried over" banner.
+  const [carried, setCarried] = useState(!isEditing && Boolean(previousBrew));
 
   const fileInputRef = useRef(null);
   const savedTimerRef = useRef(null);
@@ -212,26 +251,43 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
     setPhotoFile(file); // the preview URL can't be uploaded — keep the File too
   };
 
-  const resetForm = () => {
-    setMethod(DEFAULTS.method);
-    setMachineBrand(DEFAULTS.machineBrand);
-    setMachineModel(DEFAULTS.machineModel);
-    setGrinder(DEFAULTS.grinder);
-    setBeanName(DEFAULTS.beanName);
-    setOrigin(DEFAULTS.origin);
-    setProcess(DEFAULTS.process);
-    setRoast(DEFAULTS.roast);
-    setDose(DEFAULTS.dose);
-    setWater(DEFAULTS.water);
-    setTemp(DEFAULTS.temp);
-    setTime(DEFAULTS.time);
-    setFlavors(DEFAULTS.flavors);
-    setRating(DEFAULTS.rating);
-    setNotes(DEFAULTS.notes);
+  const applyFields = (s) => {
+    setMethod(s.method);
+    setMachineBrand(s.machineBrand);
+    setMachineModel(s.machineModel);
+    setGrinder(s.grinder);
+    setBeanName(s.beanName);
+    setOrigin(s.origin);
+    setProcess(s.process);
+    setRoast(s.roast);
+    setDose(s.dose);
+    setWater(s.water);
+    setTemp(s.temp);
+    setTime(s.time);
+    setFlavors(s.flavors);
+    setRating(s.rating);
+    setNotes(s.notes);
+  };
+
+  const clearPhoto = () => {
     if (isObjectUrl(photo)) URL.revokeObjectURL(photo);
     setPhoto(null);
     setPhotoFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // After saving, keep the setup on screen for the next cup rather than wiping
+  // it — same equipment and beans is the common case, a different one is not.
+  const resetAfterSave = (row) => {
+    applyFields(carriedForwardFrom(row));
+    clearPhoto();
+    setCarried(true);
+  };
+
+  const startBlank = () => {
+    applyFields(DEFAULTS);
+    clearPhoto();
+    setCarried(false);
   };
 
   const handleShare = async () => {
@@ -362,7 +418,7 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
       // this brew once the form is blank again.
       setLastSaved({ row, photoBlob: photoFile });
       setSaved(true);
-      resetForm();
+      resetAfterSave(row);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setError(err?.message ?? "Something went wrong saving this brew.");
@@ -418,6 +474,25 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
         </div>
       </div>
 
+      {carried && !isEditing && (
+        <div
+          className="px-6 py-2.5 flex items-center justify-between gap-3"
+          style={{ background: TOKENS.greenSoft, borderBottom: `1px solid ${TOKENS.rule}` }}
+        >
+          <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.green, letterSpacing: "0.08em" }}>
+            SETUP CARRIED OVER
+          </span>
+          <button
+            type="button"
+            onClick={startBlank}
+            className="text-[10px] uppercase tracking-[0.08em]"
+            style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
+          >
+            Start blank
+          </button>
+        </div>
+      )}
+
       <div className="px-6 py-6">
         {/* 01 Method */}
         <StepLabel n={1} title="Method" done={!!method} />
@@ -432,9 +507,27 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
         {/* 02 Equipment */}
         <StepLabel n={2} title="Equipment" done={!!machineBrand || !!grinder} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Field label="Brewer brand" value={machineBrand} onChange={setMachineBrand} placeholder="Hario" />
-          <Field label="Brewer model" value={machineModel} onChange={setMachineModel} placeholder="V60-02" />
-          <Field label="Grinder" value={grinder} onChange={setGrinder} placeholder="Comandante C40" />
+          <Field
+            label="Brewer brand"
+            value={machineBrand}
+            onChange={setMachineBrand}
+            placeholder="Hario"
+            suggestions={suggestions.machineBrand}
+          />
+          <Field
+            label="Brewer model"
+            value={machineModel}
+            onChange={setMachineModel}
+            placeholder="V60-02"
+            suggestions={suggestions.machineModel}
+          />
+          <Field
+            label="Grinder"
+            value={grinder}
+            onChange={setGrinder}
+            placeholder="Comandante C40"
+            suggestions={suggestions.grinder}
+          />
         </div>
 
         <Divider />
@@ -442,8 +535,20 @@ export default function BrewForm({ brew = null, initialPhotoUrl = null, onSaved,
         {/* 03 Beans */}
         <StepLabel n={3} title="Beans" done={!!beanName} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
-          <Field label="Name / roaster" value={beanName} onChange={setBeanName} placeholder="Tim Wendelboe" />
-          <Field label="Origin" value={origin} onChange={setOrigin} placeholder="Ethiopia" />
+          <Field
+            label="Name / roaster"
+            value={beanName}
+            onChange={setBeanName}
+            placeholder="Tim Wendelboe"
+            suggestions={suggestions.beanName}
+          />
+          <Field
+            label="Origin"
+            value={origin}
+            onChange={setOrigin}
+            placeholder="Ethiopia"
+            suggestions={suggestions.origin}
+          />
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {PROCESSES.map((p) => (

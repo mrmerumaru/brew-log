@@ -4,6 +4,12 @@ import Login from "./Login";
 import BrewForm from "./BrewForm";
 import BrewHistory from "./BrewHistory";
 import { TOKENS, SANS, MONO } from "./tokens";
+import { suggestionsFrom } from "./brew";
+
+// Columns the form needs for carry-forward and autocomplete. Deliberately not
+// `*` — notes and photo_path aren't used here and would just add weight.
+const SETUP_COLUMNS =
+  "id,created_at,method,machine_brand,machine_model,grinder,bean_name,origin,process,roast_level,dose_g,water_g,water_temp_c,brew_time_s";
 
 function Tab({ label, active, onClick }) {
   return (
@@ -33,6 +39,10 @@ export default function App() {
   // is the signed URL the history card already fetched, reused as the preview
   // so the form doesn't have to sign it again.
   const [editing, setEditing] = useState(null);
+  // undefined = still loading, null = no brews yet. The form waits for this so
+  // its initial field values are right on first render rather than flashing
+  // blank and then filling in.
+  const [pastBrews, setPastBrews] = useState(undefined);
 
   const startEdit = (brew, photoUrl) => {
     setEditing({ brew, photoUrl: photoUrl ?? null });
@@ -57,6 +67,26 @@ export default function App() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setPastBrews(undefined);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("brews")
+      .select(SETUP_COLUMNS)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        // A failure here only costs autocomplete, so fall back to "no history"
+        // rather than blocking the form behind an error.
+        if (!cancelled) setPastBrews(data ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, refreshKey]);
 
   const shell = (children) => (
     <div
@@ -101,16 +131,22 @@ export default function App() {
       </div>
 
       {tab === "log" ? (
-        <BrewForm
-          // Remounting on mode change is what re-reads the initial field
-          // values, so editing a brew loads its data instead of keeping
-          // whatever was on screen.
-          key={editing?.brew.id ?? "new"}
-          brew={editing?.brew ?? null}
-          initialPhotoUrl={editing?.photoUrl ?? null}
-          onSaved={() => setRefreshKey((k) => k + 1)}
-          onExitEdit={finishEdit}
-        />
+        // Wait for the history fetch so the form's initial values are correct
+        // on first render; it's one small query and only happens on sign-in.
+        pastBrews === undefined ? null : (
+          <BrewForm
+            // Remounting on mode change is what re-reads the initial field
+            // values, so editing a brew loads its data instead of keeping
+            // whatever was on screen.
+            key={editing?.brew.id ?? "new"}
+            brew={editing?.brew ?? null}
+            initialPhotoUrl={editing?.photoUrl ?? null}
+            previousBrew={pastBrews?.[0] ?? null}
+            suggestions={suggestionsFrom(pastBrews ?? [])}
+            onSaved={() => setRefreshKey((k) => k + 1)}
+            onExitEdit={finishEdit}
+          />
+        )
       ) : (
         <BrewHistory refreshKey={refreshKey} onEdit={startEdit} />
       )}
