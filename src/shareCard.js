@@ -9,9 +9,15 @@
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { formatBrewTime, ratioOf } from "./brew";
 
-// 9:16 — full-screen on a phone, and the native aspect for Stories/Reels.
-const W = 1080;
-const H = 1920;
+// The layout is elastic — the photo absorbs whatever space the text doesn't
+// need — so a new aspect is just a new entry here.
+export const CARD_RATIOS = {
+  "9:16": { label: "Story", note: "Instagram Stories, Reels, TikTok", w: 1080, h: 1920 },
+  "4:5": { label: "Post", note: "Instagram feed, X, Threads", w: 1080, h: 1350 },
+};
+
+export const DEFAULT_RATIO = "9:16";
+
 const PAD = 72;
 
 // Vertical rhythm. Block heights are measured, not guessed, so the layout can
@@ -106,9 +112,11 @@ async function decode(blob) {
  * Paint a share card for one brew.
  * @param {object} brew  a row from the `brews` table
  * @param {Blob|null} photoBlob  the brew photo, already downloaded
+ * @param {keyof CARD_RATIOS} ratio  output aspect
  * @returns {Promise<Blob>} a PNG
  */
-export async function buildShareCard(brew, photoBlob) {
+export async function buildShareCard(brew, photoBlob, ratio = DEFAULT_RATIO) {
+  const { w: W, h: H } = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
   // Without this the card renders in a fallback face — the web fonts may not
   // have loaded yet, and canvas won't wait for them.
   if (document.fonts?.ready) {
@@ -282,10 +290,11 @@ export async function buildShareCard(brew, photoBlob) {
   });
 }
 
-export function shareCardFilename(brew) {
+export function shareCardFilename(brew, ratio = DEFAULT_RATIO) {
   const slug = (brew.method || "brew").toLowerCase().replace(/[^a-z0-9]+/g, "-");
   const date = new Date(brew.created_at ?? Date.now()).toISOString().slice(0, 10);
-  return `brew-log-${slug}-${date}.png`;
+  const size = ratio.replace(":", "x");
+  return `brew-log-${slug}-${date}-${size}.png`;
 }
 
 /**

@@ -19,7 +19,7 @@ import {
   num,
   isObjectUrl,
 } from "./brew";
-import { buildShareCard, shareCardFilename, shareOrDownload } from "./shareCard";
+import ShareSheet from "./ShareSheet";
 
 const DEFAULTS = {
   method: "Pourover",
@@ -209,7 +209,6 @@ export default function BrewForm({
   // act on it after the fields have been cleared. { row, photoBlob }
   const [lastSaved, setLastSaved] = useState(null);
   const [sharing, setSharing] = useState(false);
-  const [notice, setNotice] = useState(null);
   // Whether the fields on screen came from a previous brew rather than being
   // typed fresh — drives the "carried over" banner.
   const [carried, setCarried] = useState(!isEditing && Boolean(previousBrew));
@@ -288,31 +287,6 @@ export default function BrewForm({
     applyFields(DEFAULTS);
     clearPhoto();
     setCarried(false);
-  };
-
-  const handleShare = async () => {
-    if (!lastSaved || sharing) return;
-    setSharing(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const card = await buildShareCard(lastSaved.row, lastSaved.photoBlob);
-      const result = await shareOrDownload(
-        card,
-        shareCardFilename(lastSaved.row),
-        `${lastSaved.row.method ?? "Brew"}${
-          lastSaved.row.bean_name ? ` · ${lastSaved.row.bean_name}` : ""
-        }`,
-      );
-      if (result === "downloaded") {
-        setNotice("Card saved to your downloads — your browser can't share files directly.");
-      }
-    } catch (err) {
-      setError(`Couldn't build the share card: ${err?.message ?? err}`);
-    } finally {
-      setSharing(false);
-    }
   };
 
   const handleSave = async () => {
@@ -694,8 +668,8 @@ export default function BrewForm({
             ) : (
               <button
                 type="button"
-                onClick={handleShare}
-                disabled={!lastSaved || sharing}
+                onClick={() => setSharing(true)}
+                disabled={!lastSaved}
                 className="flex items-center justify-center w-11 rounded-sm shrink-0"
                 style={{
                   border: `1px solid ${TOKENS.rule}`,
@@ -709,11 +683,7 @@ export default function BrewForm({
                     : "Save a brew first, then share it"
                 }
               >
-                {sharing ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <Share2 size={15} />
-                )}
+                <Share2 size={15} />
               </button>
             )}
           </div>
@@ -729,10 +699,12 @@ export default function BrewForm({
           </p>
         )}
 
-        {notice && (
-          <p className="mt-4 text-[13px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
-            {notice}
-          </p>
+        {sharing && lastSaved && (
+          <ShareSheet
+            brew={lastSaved.row}
+            photoBlob={lastSaved.photoBlob}
+            onClose={() => setSharing(false)}
+          />
         )}
       </div>
     </div>

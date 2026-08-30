@@ -3,7 +3,7 @@ import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
 import { formatBrewTime, ratioOf } from "./brew";
-import { buildShareCard, shareCardFilename, shareOrDownload } from "./shareCard";
+import ShareSheet from "./ShareSheet";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
 
@@ -300,7 +300,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
   const [error, setError] = useState(null); // fetch failure — replaces the list
   const [deletingId, setDeletingId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
-  const [notice, setNotice] = useState(null);
+  const [shareTarget, setShareTarget] = useState(null); // { brew, photoBlob }
 
   const [method, setMethod] = useState(null);
   const [query, setQuery] = useState("");
@@ -382,14 +382,14 @@ export default function BrewHistory({ refreshKey, onEdit }) {
     load();
   }, [load, refreshKey]);
 
+  // Fetch the photo, then hand off to ShareSheet for aspect choice and preview.
   const handleShare = useCallback(async (brew) => {
     setSharingId(brew.id);
     setDeleteError(null);
-    setNotice(null);
 
     try {
-      // Fetch the photo through the SDK rather than the signed URL in an <img>:
-      // a Blob can't taint the canvas, so toBlob() is guaranteed to work.
+      // Download through the SDK rather than pointing an <img> at the signed
+      // URL: a Blob can't taint the canvas, so toBlob() is guaranteed to work.
       let photoBlob = null;
       if (brew.photo_path) {
         const { data, error: downloadError } = await supabase.storage
@@ -398,19 +398,9 @@ export default function BrewHistory({ refreshKey, onEdit }) {
         if (!downloadError) photoBlob = data;
         // A missing photo just means a text-only card, not a failed share.
       }
-
-      const card = await buildShareCard(brew, photoBlob);
-      const result = await shareOrDownload(
-        card,
-        shareCardFilename(brew),
-        `${brew.method ?? "Brew"}${brew.bean_name ? ` · ${brew.bean_name}` : ""}`,
-      );
-
-      if (result === "downloaded") {
-        setNotice("Card saved to your downloads — your browser can't share files directly.");
-      }
+      setShareTarget({ brew, photoBlob });
     } catch (err) {
-      setDeleteError(`Couldn't build the share card: ${err?.message ?? err}`);
+      setDeleteError(`Couldn't prepare the share card: ${err?.message ?? err}`);
     } finally {
       setSharingId(null);
     }
@@ -554,10 +544,12 @@ export default function BrewHistory({ refreshKey, onEdit }) {
         </p>
       )}
 
-      {notice && (
-        <p className="mt-4 text-[13px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
-          {notice}
-        </p>
+      {shareTarget && (
+        <ShareSheet
+          brew={shareTarget.brew}
+          photoBlob={shareTarget.photoBlob}
+          onClose={() => setShareTarget(null)}
+        />
       )}
     </div>
   );
