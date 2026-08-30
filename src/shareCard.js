@@ -9,10 +9,19 @@
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { formatBrewTime, ratioOf } from "./brew";
 
-// 4:5 — the tallest aspect Instagram shows uncropped in feed.
+// 9:16 — full-screen on a phone, and the native aspect for Stories/Reels.
 const W = 1080;
-const H = 1350;
+const H = 1920;
 const PAD = 72;
+
+// Vertical rhythm. Block heights are measured, not guessed, so the layout can
+// be assembled bottom-up and never collide with the footer.
+const GAP = 36;
+const CHIP_H = 54;
+const CHIP_GAP = 12;
+const MAX_CHIP_ROWS = 2;
+// Cap so a tall card doesn't crop landscape photos to a narrow slot.
+const MAX_PHOTO_RATIO = 1.25;
 
 function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -30,6 +39,36 @@ function drawCover(ctx, img, x, y, w, h) {
   const dw = img.width * scale;
   const dh = img.height * scale;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+// Measure-then-draw: work out which chips fit on which row before committing to
+// a height, so the caller can reserve exactly the space needed.
+function layoutChips(ctx, tags, maxWidth) {
+  ctx.font = `400 28px ${SERIF}`;
+  const rows = [];
+  let row = [];
+  let rowWidth = 0;
+
+  for (const tag of tags) {
+    const chipW = ctx.measureText(tag).width + 46;
+    const needed = row.length ? rowWidth + CHIP_GAP + chipW : chipW;
+    if (needed > maxWidth && row.length) {
+      rows.push(row);
+      if (rows.length === MAX_CHIP_ROWS) return { rows, height: chipRowsHeight(rows) };
+      row = [{ tag, w: chipW }];
+      rowWidth = chipW;
+    } else {
+      row.push({ tag, w: chipW });
+      rowWidth = needed;
+    }
+  }
+  if (row.length) rows.push(row);
+  return { rows, height: chipRowsHeight(rows) };
+}
+
+function chipRowsHeight(rows) {
+  if (!rows.length) return 0;
+  return rows.length * CHIP_H + (rows.length - 1) * CHIP_GAP;
 }
 
 function truncate(ctx, text, maxWidth) {
@@ -91,59 +130,15 @@ export async function buildShareCard(brew, photoBlob) {
   ctx.fillRect(0, 0, W, H);
 
   const inner = W - PAD * 2;
-  let y = PAD;
+  ctx.textBaseline = "top";
 
-  // ---- Photo -------------------------------------------------------------
-  if (img) {
-    const photoH = 820;
-    ctx.save();
-    roundRectPath(ctx, PAD, y, inner, photoH, 8);
-    ctx.clip();
-    drawCover(ctx, img, PAD, y, inner, photoH);
-    ctx.restore();
+  // ---- Measure everything before drawing anything -------------------------
+  // The footer owns the bottom of the card; text blocks stack upward from it;
+  // the photo takes whatever is left. Nothing can overlap because no block is
+  // positioned until every height is known.
 
-    ctx.strokeStyle = TOKENS.rule;
-    ctx.lineWidth = 2;
-    roundRectPath(ctx, PAD, y, inner, photoH, 8);
-    ctx.stroke();
-
-    y += photoH + 64;
-  } else {
-    // No photo: let the type breathe instead of leaving a hole.
-    y += 180;
-  }
-
-  // ---- Method + rating ---------------------------------------------------
-  ctx.textBaseline = "alphabetic";
-
-  const dots = "●".repeat(brew.rating ?? 0);
-  const emptyDots = "●".repeat(5 - (brew.rating ?? 0));
-  ctx.font = `600 34px ${MONO}`;
-  const ratingW = ctx.measureText(dots + emptyDots).width;
-
-  ctx.font = `700 64px ${SANS}`;
-  ctx.fillStyle = TOKENS.ink;
-  ctx.fillText(truncate(ctx, brew.method || "Brew", inner - ratingW - 32), PAD, y + 52);
-
-  ctx.font = `600 34px ${MONO}`;
-  const ratingX = W - PAD - ratingW;
-  ctx.fillStyle = TOKENS.amber;
-  ctx.fillText(dots, ratingX, y + 48);
-  ctx.fillStyle = TOKENS.rule;
-  ctx.fillText(emptyDots, ratingX + ctx.measureText(dots).width, y + 48);
-
-  y += 96;
-
-  // ---- Beans -------------------------------------------------------------
   const beans = [brew.bean_name, brew.origin].filter(Boolean).join(" · ");
-  if (beans) {
-    ctx.font = `400 34px ${SERIF}`;
-    ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(truncate(ctx, beans, inner), PAD, y + 26);
-    y += 60;
-  }
 
-  // ---- Stats -------------------------------------------------------------
   const stats = [
     ["RATIO", ratioOf(brew)],
     ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
@@ -151,58 +146,122 @@ export async function buildShareCard(brew, photoBlob) {
     ["TIME", formatBrewTime(brew.brew_time_s)],
   ].filter(([, v]) => v);
 
+  const chips = layoutChips(ctx, brew.flavor_tags ?? [], inner);
+
+  const METHOD_H = 76;
+  const BEANS_H = 46;
+  const STATS_H = 80;
+
+  const blocks = [METHOD_H];
+  if (beans) blocks.push(BEANS_H);
+  if (stats.length) blocks.push(STATS_H);
+  if (chips.height) blocks.push(chips.height);
+
+  const contentH = blocks.reduce((a, b) => a + b, 0) + GAP * (blocks.length - 1);
+
+  const footerLineY = H - PAD - 56;
+  const contentBottom = footerLineY - 56;
+  let y = contentBottom - contentH;
+
+  // ---- Photo -------------------------------------------------------------
+  if (img) {
+    const available = y - PAD - 56;
+    const photoH = Math.min(available, inner * MAX_PHOTO_RATIO);
+    const photoY = PAD + Math.max(0, (available - photoH) / 2);
+
+    ctx.save();
+    roundRectPath(ctx, PAD, photoY, inner, photoH, 8);
+    ctx.clip();
+    drawCover(ctx, img, PAD, photoY, inner, photoH);
+    ctx.restore();
+
+    ctx.strokeStyle = TOKENS.rule;
+    ctx.lineWidth = 2;
+    roundRectPath(ctx, PAD, photoY, inner, photoH, 8);
+    ctx.stroke();
+  } else {
+    // Nothing to fill the space, so centre the text between top and footer
+    // rather than stranding it at the bottom.
+    y = PAD + (footerLineY - PAD - contentH) / 2;
+  }
+
+  // ---- Method + rating ---------------------------------------------------
+  const filled = "●".repeat(brew.rating ?? 0);
+  const empty = "●".repeat(5 - (brew.rating ?? 0));
+  ctx.font = `600 36px ${MONO}`;
+  const filledW = ctx.measureText(filled).width;
+  const ratingW = ctx.measureText(filled + empty).width;
+
+  ctx.font = `700 64px ${SANS}`;
+  ctx.fillStyle = TOKENS.ink;
+  ctx.fillText(truncate(ctx, brew.method || "Brew", inner - ratingW - 32), PAD, y);
+
+  ctx.font = `600 36px ${MONO}`;
+  const ratingX = W - PAD - ratingW;
+  const ratingY = y + 18; // optical centring against the 64px method
+  ctx.fillStyle = TOKENS.amber;
+  ctx.fillText(filled, ratingX, ratingY);
+  ctx.fillStyle = TOKENS.rule;
+  ctx.fillText(empty, ratingX + filledW, ratingY);
+
+  y += METHOD_H + GAP;
+
+  // ---- Beans -------------------------------------------------------------
+  if (beans) {
+    ctx.font = `400 34px ${SERIF}`;
+    ctx.fillStyle = TOKENS.inkFaint;
+    ctx.fillText(truncate(ctx, beans, inner), PAD, y);
+    y += BEANS_H + GAP;
+  }
+
+  // ---- Stats -------------------------------------------------------------
   if (stats.length) {
-    y += 12;
-    let x = PAD;
-    stats.forEach(([label, value]) => {
+    // Even columns across the full width, so four stats don't bunch left.
+    const colW = inner / stats.length;
+    stats.forEach(([label, value], i) => {
+      const x = PAD + colW * i;
       ctx.font = `500 20px ${MONO}`;
       ctx.fillStyle = TOKENS.inkFaint;
       ctx.fillText(label, x, y);
 
       ctx.font = `600 36px ${MONO}`;
       ctx.fillStyle = TOKENS.ink;
-      ctx.fillText(String(value), x, y + 42);
-
-      x += Math.max(ctx.measureText(String(value)).width, 90) + 56;
+      ctx.fillText(truncate(ctx, String(value), colW - 16), x, y + 32);
     });
-    y += 84;
+    y += STATS_H + GAP;
   }
 
   // ---- Flavour tags ------------------------------------------------------
-  const tags = brew.flavor_tags ?? [];
-  if (tags.length) {
-    y += 12;
-    let x = PAD;
-    const chipH = 48;
-    ctx.font = `400 26px ${SERIF}`;
-    tags.forEach((tag) => {
-      const textW = ctx.measureText(tag).width;
-      const chipW = textW + 44;
-      if (x + chipW > W - PAD) return; // silently drop overflow rather than wrap off-card
-      ctx.fillStyle = TOKENS.greenSoft;
-      roundRectPath(ctx, x, y, chipW, chipH, chipH / 2);
-      ctx.fill();
-      ctx.fillStyle = TOKENS.green;
-      ctx.fillText(tag, x + 22, y + 33);
-      x += chipW + 12;
+  if (chips.height) {
+    ctx.font = `400 28px ${SERIF}`;
+    chips.rows.forEach((row, rowIndex) => {
+      let x = PAD;
+      const rowY = y + rowIndex * (CHIP_H + CHIP_GAP);
+      row.forEach(({ tag, w }) => {
+        ctx.fillStyle = TOKENS.greenSoft;
+        roundRectPath(ctx, x, rowY, w, CHIP_H, CHIP_H / 2);
+        ctx.fill();
+        ctx.fillStyle = TOKENS.green;
+        ctx.fillText(tag, x + 23, rowY + 13);
+        x += w + CHIP_GAP;
+      });
     });
-    y += chipH + 28;
   }
 
   // ---- Footer ------------------------------------------------------------
-  const footerY = H - PAD;
   ctx.strokeStyle = TOKENS.rule;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 6]);
   ctx.beginPath();
-  ctx.moveTo(PAD, footerY - 44);
-  ctx.lineTo(W - PAD, footerY - 44);
+  ctx.moveTo(PAD, footerLineY);
+  ctx.lineTo(W - PAD, footerLineY);
   ctx.stroke();
   ctx.setLineDash([]);
 
+  const footerTextY = footerLineY + 26;
   ctx.font = `700 22px ${SANS}`;
   ctx.fillStyle = TOKENS.green;
-  ctx.fillText("BREW LOG", PAD, footerY);
+  ctx.fillText("BREW LOG", PAD, footerTextY);
 
   if (brew.created_at) {
     const date = new Date(brew.created_at).toLocaleDateString(undefined, {
@@ -212,8 +271,7 @@ export async function buildShareCard(brew, photoBlob) {
     });
     ctx.font = `400 22px ${MONO}`;
     ctx.fillStyle = TOKENS.inkFaint;
-    const dateW = ctx.measureText(date).width;
-    ctx.fillText(date, W - PAD - dateW, footerY);
+    ctx.fillText(date, W - PAD - ctx.measureText(date).width, footerTextY);
   }
 
   return new Promise((resolve, reject) => {
