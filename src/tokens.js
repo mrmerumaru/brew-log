@@ -18,6 +18,26 @@ export const SANS = "'Space Grotesk', sans-serif";
 export const MONO = "'IBM Plex Mono', monospace";
 export const SERIF = "'Source Serif 4', serif";
 
+// Starting suggestions for the drink field. Not a closed list — it's a free
+// text input, and anything you type joins the suggestions next time.
+export const DRINKS = [
+  "Espresso",
+  "Americano",
+  "Iced Americano",
+  "Long Black",
+  "Latte",
+  "Iced Latte",
+  "Flat White",
+  "Cappuccino",
+  "Cortado",
+  "Piccolo",
+  "Macchiato",
+  "Mocha",
+  "Black Coffee",
+  "Iced Coffee",
+  "Affogato",
+];
+
 export const METHODS = [
   "Pourover",
   "Moka Pot",

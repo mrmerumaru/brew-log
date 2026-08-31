@@ -9,7 +9,8 @@ create table if not exists brews (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid references auth.users not null default auth.uid(),
   created_at    timestamptz not null default now(),
-  method        text,
+  drink         text,           -- what's in the cup: Iced Latte, Long Black…
+  method        text,           -- how it was brewed: Pourover, Espresso…
   machine_brand text,
   machine_model text,
   grinder       text,

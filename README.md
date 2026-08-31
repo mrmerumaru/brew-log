@@ -103,9 +103,15 @@ and also lets us await `document.fonts.ready` so the card never renders in a
 fallback typeface. On phones the card goes to the OS share sheet via the Web
 Share API; elsewhere it downloads as a PNG.
 
-Not built yet: equipment/bean presets and history filtering (M4). Grind size,
-bean variety, and roast date appear in the PRD's data model but aren't in the
-schema or the form yet.
+Beyond the original docs, brews also record a **drink** (Iced Latte, Long Black,
+Cappuccino) separately from the brewing **method** (Pourover, Espresso) — one
+method makes many drinks. The drink is the headline in history and on the share
+card, with the method dropping to the secondary line. It's a free-text field
+suggested from `DRINKS` in [src/tokens.js](src/tokens.js) plus whatever you've
+logged before, so it isn't a closed list.
+
+Not built yet: grind size, bean variety, and roast date appear in the PRD's data
+model but aren't in the schema or the form yet.
 
 Known limits: Supabase's built-in email sender is rate-limited to a few messages
 per hour, so sign-in links can be slow to arrive for new users — configure your

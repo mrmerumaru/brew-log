@@ -6,6 +6,7 @@ import {
   SANS,
   MONO,
   SERIF,
+  DRINKS,
   METHODS,
   PROCESSES,
   ROASTS,
@@ -22,6 +23,7 @@ import {
 import ShareSheet from "./ShareSheet";
 
 const DEFAULTS = {
+  drink: "",
   method: "Pourover",
   machineBrand: "",
   machineModel: "",
@@ -43,6 +45,7 @@ const DEFAULTS = {
 // because the inputs are text fields, and brew_time_s becomes "m:ss".
 function formStateFromBrew(brew) {
   return {
+    drink: brew.drink ?? "",
     method: brew.method ?? DEFAULTS.method,
     machineBrand: brew.machine_brand ?? "",
     machineModel: brew.machine_model ?? "",
@@ -181,6 +184,7 @@ export default function BrewForm({
       ? carriedForwardFrom(previousBrew)
       : DEFAULTS;
 
+  const [drink, setDrink] = useState(init.drink);
   const [method, setMethod] = useState(init.method);
   const [machineBrand, setMachineBrand] = useState(init.machineBrand);
   const [machineModel, setMachineModel] = useState(init.machineModel);
@@ -215,6 +219,14 @@ export default function BrewForm({
 
   const fileInputRef = useRef(null);
   const savedTimerRef = useRef(null);
+
+  // Your own drinks first (most recent first, from suggestionsFrom), then the
+  // starter list for anything you haven't logged yet.
+  const drinkSuggestions = useMemo(() => {
+    const mine = suggestions.drink ?? [];
+    const seen = new Set(mine.map((d) => d.toLowerCase()));
+    return [...mine, ...DRINKS.filter((d) => !seen.has(d.toLowerCase()))];
+  }, [suggestions.drink]);
 
   const ratio = useMemo(() => {
     const d = parseFloat(dose);
@@ -251,6 +263,7 @@ export default function BrewForm({
   };
 
   const applyFields = (s) => {
+    setDrink(s.drink);
     setMethod(s.method);
     setMachineBrand(s.machineBrand);
     setMachineModel(s.machineModel);
@@ -309,6 +322,7 @@ export default function BrewForm({
       // Same column values either way; only user_id differs, and an edit must
       // never reassign ownership.
       const fields = {
+        drink,
         method,
         machine_brand: machineBrand,
         machine_model: machineModel,
@@ -468,8 +482,20 @@ export default function BrewForm({
       )}
 
       <div className="px-6 py-6">
-        {/* 01 Method */}
-        <StepLabel n={1} title="Method" done={!!method} />
+        {/* 01 Drink */}
+        <StepLabel n={1} title="Drink" done={!!drink} />
+        <Field
+          label="What did you make?"
+          value={drink}
+          onChange={setDrink}
+          placeholder="Iced Latte"
+          suggestions={drinkSuggestions}
+        />
+
+        <Divider />
+
+        {/* 02 Method */}
+        <StepLabel n={2} title="Method" done={!!method} />
         <div className="flex flex-wrap gap-2">
           {METHODS.map((m) => (
             <Chip key={m} label={m} active={method === m} onClick={() => setMethod(m)} />
@@ -478,8 +504,8 @@ export default function BrewForm({
 
         <Divider />
 
-        {/* 02 Equipment */}
-        <StepLabel n={2} title="Equipment" done={!!machineBrand || !!grinder} />
+        {/* 03 Equipment */}
+        <StepLabel n={3} title="Equipment" done={!!machineBrand || !!grinder} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <Field
             label="Brewer brand"
@@ -507,7 +533,7 @@ export default function BrewForm({
         <Divider />
 
         {/* 03 Beans */}
-        <StepLabel n={3} title="Beans" done={!!beanName} />
+        <StepLabel n={4} title="Beans" done={!!beanName} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
           <Field
             label="Name / roaster"
@@ -538,7 +564,7 @@ export default function BrewForm({
         <Divider />
 
         {/* 04 Parameters */}
-        <StepLabel n={4} title="Parameters" done={!!dose && !!water} />
+        <StepLabel n={5} title="Parameters" done={!!dose && !!water} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <Field label="Dose" value={dose} onChange={setDose} mono suffix="g" />
           <Field label="Water" value={water} onChange={setWater} mono suffix="g" />
@@ -549,7 +575,7 @@ export default function BrewForm({
         <Divider />
 
         {/* 05 Tasting */}
-        <StepLabel n={5} title="Tasting Notes" done={flavors.length > 0} />
+        <StepLabel n={6} title="Tasting Notes" done={flavors.length > 0} />
         <div className="flex flex-wrap gap-2 mb-5">
           {FLAVORS.map((f) => (
             <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />

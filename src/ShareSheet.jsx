@@ -137,7 +137,9 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       const result = await shareOrDownload(
         blob,
         shareCardFilename(brew, ratio),
-        `${brew.method ?? "Brew"}${brew.bean_name ? ` · ${brew.bean_name}` : ""}`,
+        `${brew.drink || brew.method || "Brew"}${
+          brew.bean_name ? ` · ${brew.bean_name}` : ""
+        }`,
       );
       if (result === "downloaded") {
         setNotice("Saved to your downloads — this browser can't share files directly.");

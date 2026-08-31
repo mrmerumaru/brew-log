@@ -155,7 +155,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               className="text-[14px] truncate"
               style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
             >
-              {brew.method || "Brew"}
+              {brew.drink || brew.method || "Brew"}
             </h3>
             <span
               className="shrink-0"
@@ -171,7 +171,10 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             className="text-[13px] mt-0.5 truncate"
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
           >
-            {[brew.bean_name, brew.origin].filter(Boolean).join(" · ") || "No bean recorded"}
+            {/* Method moves here once a drink is named, so it isn't lost. */}
+            {[brew.drink ? brew.method : null, brew.bean_name, brew.origin]
+              .filter(Boolean)
+              .join(" · ") || "No bean recorded"}
           </p>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3">
@@ -256,7 +259,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                   type="button"
                   onClick={() => onShare(brew)}
                   disabled={sharing}
-                  aria-label={`Share this ${brew.method || "brew"}`}
+                  aria-label={`Share this ${brew.drink || brew.method || "brew"}`}
                   title="Share brew"
                   style={{ color: TOKENS.inkFaint }}
                 >
@@ -269,7 +272,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                 <button
                   type="button"
                   onClick={() => onEdit(brew, photoUrl)}
-                  aria-label={`Edit this ${brew.method || "brew"}`}
+                  aria-label={`Edit this ${brew.drink || brew.method || "brew"}`}
                   title="Edit brew"
                   style={{ color: TOKENS.inkFaint }}
                 >
@@ -278,7 +281,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                 <button
                   type="button"
                   onClick={() => setConfirming(true)}
-                  aria-label={`Delete this ${brew.method || "brew"}`}
+                  aria-label={`Delete this ${brew.drink || brew.method || "brew"}`}
                   title="Delete brew"
                   style={{ color: TOKENS.rule }}
                 >
@@ -323,7 +326,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
       if (method && b.method !== method) return false;
       if (minRating > 0 && (b.rating ?? 0) < minRating) return false;
       if (q) {
-        const haystack = [b.bean_name, b.origin, b.notes, b.process, b.roast_level]
+        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();

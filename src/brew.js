@@ -57,6 +57,7 @@ export function ratioOf(brew) {
 // separate preset table to keep in sync.
 export function suggestionsFrom(rows = []) {
   const fields = {
+    drink: "drink",
     machineBrand: "machine_brand",
     machineModel: "machine_model",
     grinder: "grinder",
@@ -66,14 +67,15 @@ export function suggestionsFrom(rows = []) {
 
   const out = {};
   for (const [key, column] of Object.entries(fields)) {
-    const seen = new Set();
-    // rows arrive newest-first, so first sighting wins and recent entries
-    // surface at the top of the dropdown.
+    // Keyed case-insensitively so "Iced Latte" and "iced latte" don't both
+    // appear; rows arrive newest-first, so the first sighting wins and the
+    // spelling you used most recently is the one offered.
+    const seen = new Map();
     for (const row of rows) {
       const value = row?.[column]?.trim();
-      if (value) seen.add(value);
+      if (value && !seen.has(value.toLowerCase())) seen.set(value.toLowerCase(), value);
     }
-    out[key] = [...seen];
+    out[key] = [...seen.values()];
   }
   return out;
 }

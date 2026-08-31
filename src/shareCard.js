@@ -170,7 +170,12 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // the photo takes whatever is left. Nothing can overlap because no block is
   // positioned until every height is known.
 
-  const beans = [brew.bean_name, brew.origin].filter(Boolean).join(" · ");
+  // The drink is the headline. When there is one, the brewing method drops to
+  // the secondary line rather than disappearing.
+  const headline = brew.drink || brew.method || "Brew";
+  const subtitle = [brew.drink ? brew.method : null, brew.bean_name, brew.origin]
+    .filter(Boolean)
+    .join(" · ");
 
   const stats = [
     ["RATIO", ratioOf(brew)],
@@ -186,7 +191,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   const STATS_H = 80;
 
   const blocks = [METHOD_H];
-  if (beans) blocks.push(BEANS_H);
+  if (subtitle) blocks.push(BEANS_H);
   if (stats.length) blocks.push(STATS_H);
   if (chips.height) blocks.push(chips.height);
 
@@ -228,7 +233,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   ctx.font = `700 64px ${SANS}`;
   ctx.fillStyle = TOKENS.ink;
-  ctx.fillText(truncate(ctx, brew.method || "Brew", inner - ratingW - 32), PAD, y);
+  ctx.fillText(truncate(ctx, headline, inner - ratingW - 32), PAD, y);
 
   ctx.font = `600 36px ${MONO}`;
   const ratingX = W - PAD - ratingW;
@@ -241,10 +246,10 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   y += METHOD_H + GAP;
 
   // ---- Beans -------------------------------------------------------------
-  if (beans) {
+  if (subtitle) {
     ctx.font = `400 34px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(truncate(ctx, beans, inner), PAD, y);
+    ctx.fillText(truncate(ctx, subtitle, inner), PAD, y);
     y += BEANS_H + GAP;
   }
 
@@ -332,7 +337,10 @@ export async function renderCardBlob(brew, img, ratio = DEFAULT_RATIO, transform
 }
 
 export function shareCardFilename(brew, ratio = DEFAULT_RATIO) {
-  const slug = (brew.method || "brew").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const slug = (brew.drink || brew.method || "brew")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
   const date = new Date(brew.created_at ?? Date.now()).toISOString().slice(0, 10);
   const size = ratio.replace(":", "x");
   return `brew-log-${slug}-${date}-${size}.png`;
