@@ -11,7 +11,7 @@
 // pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
-import { formatBrewTime, ratioOf } from "./brew";
+import { formatBrewTime, ratioOf, daysOffRoast } from "./brew";
 
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
@@ -177,11 +177,14 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     .filter(Boolean)
     .join(" · ");
 
+  const rest = daysOffRoast(brew.roast_date, brew.created_at);
+
   const stats = [
     ["RATIO", ratioOf(brew)],
     ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
     ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
     ["TIME", formatBrewTime(brew.brew_time_s)],
+    ["OFF ROAST", rest == null ? null : `${rest}d`],
   ].filter(([, v]) => v);
 
   const chips = layoutChips(ctx, brew.flavor_tags ?? [], inner);
@@ -261,7 +264,9 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
       const x = PAD + colW * i;
       ctx.font = `500 20px ${MONO}`;
       ctx.fillStyle = TOKENS.inkFaint;
-      ctx.fillText(label, x, y);
+      // Labels get truncated too: five columns leave ~187px each, and a longer
+      // label added later shouldn't silently overlap its neighbour.
+      ctx.fillText(truncate(ctx, label, colW - 16), x, y);
 
       ctx.font = `600 36px ${MONO}`;
       ctx.fillStyle = TOKENS.ink;

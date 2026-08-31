@@ -18,6 +18,7 @@ create table if not exists brews (
   origin        text,
   process       text,
   roast_level   text,
+  roast_date    date,           -- when the beans were roasted, optional
   dose_g        numeric,
   water_g       numeric,
   water_temp_c  numeric,

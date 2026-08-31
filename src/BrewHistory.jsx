@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
-import { formatBrewTime, ratioOf } from "./brew";
+import { formatBrewTime, ratioOf, daysOffRoast } from "./brew";
 import ShareSheet from "./ShareSheet";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
@@ -119,6 +119,8 @@ function Meta({ label, value }) {
 function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing }) {
   const ratio = ratioOf(brew);
   const brewTime = formatBrewTime(brew.brew_time_s);
+  // Relative to when this brew was made, not today — see daysOffRoast.
+  const rest = daysOffRoast(brew.roast_date, brew.created_at);
   // Deleting is irreversible, so the trash icon arms a confirm rather than
   // firing straight away.
   const [confirming, setConfirming] = useState(false);
@@ -182,6 +184,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             <Meta label="DOSE" value={brew.dose_g ? `${brew.dose_g}g` : null} />
             <Meta label="TEMP" value={brew.water_temp_c ? `${brew.water_temp_c}°C` : null} />
             <Meta label="TIME" value={brewTime} />
+            <Meta label="OFF ROAST" value={rest == null ? null : `${rest}d`} />
           </div>
 
           {brew.flavor_tags?.length > 0 && (

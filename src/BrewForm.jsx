@@ -18,6 +18,7 @@ import {
   formatBrewTime,
   fileExtension,
   num,
+  dateOrNull,
   isObjectUrl,
 } from "./brew";
 import ShareSheet from "./ShareSheet";
@@ -32,6 +33,7 @@ const DEFAULTS = {
   origin: "",
   process: "Washed",
   roast: "Medium",
+  roastDate: "",
   dose: "18",
   water: "290",
   temp: "94",
@@ -54,6 +56,7 @@ function formStateFromBrew(brew) {
     origin: brew.origin ?? "",
     process: brew.process ?? DEFAULTS.process,
     roast: brew.roast_level ?? DEFAULTS.roast,
+    roastDate: brew.roast_date ?? "",
     dose: brew.dose_g == null ? "" : String(brew.dose_g),
     water: brew.water_g == null ? "" : String(brew.water_g),
     temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
@@ -118,7 +121,7 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, mono, suffix, suggestions }) {
+function Field({ label, value, onChange, placeholder, mono, suffix, suggestions, type = "text" }) {
   // A native <datalist> gives autocomplete without a custom dropdown, and still
   // lets you type a value that isn't in the list.
   const listId = useId();
@@ -134,13 +137,16 @@ function Field({ label, value, onChange, placeholder, mono, suffix, suggestions 
       </span>
       <div className="flex items-baseline gap-1">
         <input
+          type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           list={hasSuggestions ? listId : undefined}
           className="w-full bg-transparent outline-none pb-1.5 text-[14px]"
           style={{
-            fontFamily: mono ? MONO : SERIF,
+            // Date inputs render their own picker UI; mono keeps the digits
+            // aligned with the other numeric fields.
+            fontFamily: mono || type === "date" ? MONO : SERIF,
             color: TOKENS.ink,
             borderBottom: `1px solid ${TOKENS.rule}`,
           }}
@@ -193,6 +199,7 @@ export default function BrewForm({
   const [origin, setOrigin] = useState(init.origin);
   const [process, setProcess] = useState(init.process);
   const [roast, setRoast] = useState(init.roast);
+  const [roastDate, setRoastDate] = useState(init.roastDate);
   const [dose, setDose] = useState(init.dose);
   const [water, setWater] = useState(init.water);
   const [temp, setTemp] = useState(init.temp);
@@ -272,6 +279,7 @@ export default function BrewForm({
     setOrigin(s.origin);
     setProcess(s.process);
     setRoast(s.roast);
+    setRoastDate(s.roastDate);
     setDose(s.dose);
     setWater(s.water);
     setTemp(s.temp);
@@ -331,6 +339,7 @@ export default function BrewForm({
         origin,
         process,
         roast_level: roast,
+        roast_date: dateOrNull(roastDate),
         dose_g: num(dose),
         water_g: num(water),
         water_temp_c: num(temp),
@@ -549,6 +558,7 @@ export default function BrewForm({
             placeholder="Ethiopia"
             suggestions={suggestions.origin}
           />
+          <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {PROCESSES.map((p) => (

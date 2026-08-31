@@ -41,6 +41,40 @@ export function fileExtension(file) {
   return "jpg";
 }
 
+// An empty date input yields "", which Postgres rejects for a date column.
+export function dateOrNull(value) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Days between the roast date and when the brew was made — the number coffee
+ * people actually care about. Deliberately measured against the brew's own
+ * timestamp, not today, so a brew logged last month still reports how fresh the
+ * beans were at the time.
+ *
+ * Returns null when there's no roast date, or when it postdates the brew (a
+ * typo rather than something worth displaying).
+ */
+export function daysOffRoast(roastDate, brewedAt) {
+  if (!roastDate) return null;
+
+  // `${date}T00:00:00` parses as local midnight; a bare "YYYY-MM-DD" would be
+  // read as UTC and land a day out for anyone west of Greenwich.
+  const roast = new Date(`${roastDate}T00:00:00`);
+  if (Number.isNaN(roast.getTime())) return null;
+
+  const brewed = brewedAt ? new Date(brewedAt) : new Date();
+  if (Number.isNaN(brewed.getTime())) return null;
+
+  // Compare calendar days in local time, so a late-evening brew doesn't round
+  // to an extra day.
+  const brewedMidnight = new Date(brewed.getFullYear(), brewed.getMonth(), brewed.getDate());
+  const days = Math.round((brewedMidnight - roast) / 86400000);
+
+  return days < 0 ? null : days;
+}
+
 // parseFloat("") is NaN, which Postgres rejects for a numeric column.
 export function num(value) {
   const parsed = parseFloat(value);

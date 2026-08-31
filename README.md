@@ -110,8 +110,15 @@ card, with the method dropping to the secondary line. It's a free-text field
 suggested from `DRINKS` in [src/tokens.js](src/tokens.js) plus whatever you've
 logged before, so it isn't a closed list.
 
-Not built yet: grind size, bean variety, and roast date appear in the PRD's data
-model but aren't in the schema or the form yet.
+Beans also carry a **roast date**, from which the app derives days-off-roast —
+shown as `OFF ROAST` in history and on the share card. That's measured against
+each brew's own `created_at` rather than today, so an old entry still reports how
+fresh the beans were when you actually made it. See `daysOffRoast` in
+[src/brew.js](src/brew.js); it compares local calendar days, because a roast date
+printed on a bag has no timezone.
+
+Not built yet: grind size and bean variety appear in the PRD's data model but
+aren't in the schema or the form yet.
 
 Known limits: Supabase's built-in email sender is rate-limited to a few messages
 per hour, so sign-in links can be slow to arrive for new users — configure your
