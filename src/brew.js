@@ -81,6 +81,13 @@ export function num(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+// "Greenfields · Fresh Milk", or just whichever half was filled in. Null when
+// there's no milk, so callers can hide the line entirely.
+export function milkLabel(brew) {
+  const parts = [brew?.milk_brand, brew?.milk_type].map((p) => p?.trim()).filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export function ratioOf(brew) {
   if (!brew.dose_g || !brew.water_g) return null;
   return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
@@ -97,6 +104,8 @@ export function suggestionsFrom(rows = []) {
     grinder: "grinder",
     beanName: "bean_name",
     origin: "origin",
+    milkBrand: "milk_brand",
+    milkType: "milk_type",
   };
 
   const out = {};

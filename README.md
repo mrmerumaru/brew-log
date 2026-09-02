@@ -117,6 +117,16 @@ fresh the beans were when you actually made it. See `daysOffRoast` in
 [src/brew.js](src/brew.js); it compares local calendar days, because a roast date
 printed on a bag has no timezone.
 
+Milk-based drinks record an optional **milk brand** and **kind** (Greenfields ·
+Fresh Milk), kept as two columns so each autocompletes independently. The milk
+line is hidden entirely when both are empty, so an espresso isn't cluttered by
+it.
+
+Ratings are **coffee cups, out of five** — lucide's `Coffee` icon in the app, and
+hand-drawn canvas paths in the share card (`drawCup` in
+[src/shareCard.js](src/shareCard.js), since canvas can't use the React icon set
+and an emoji would clash with the palette).
+
 Not built yet: grind size and bean variety appear in the PRD's data model but
 aren't in the schema or the form yet.
 

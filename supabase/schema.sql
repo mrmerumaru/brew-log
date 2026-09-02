@@ -19,6 +19,8 @@ create table if not exists brews (
   process       text,
   roast_level   text,
   roast_date    date,           -- when the beans were roasted, optional
+  milk_brand    text,           -- optional, milk drinks only
+  milk_type     text,           -- Fresh Milk, Oat, Low Fat…
   dose_g        numeric,
   water_g       numeric,
   water_temp_c  numeric,

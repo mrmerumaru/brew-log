@@ -7,6 +7,7 @@ import {
   MONO,
   SERIF,
   DRINKS,
+  MILK_TYPES,
   METHODS,
   PROCESSES,
   ROASTS,
@@ -34,6 +35,8 @@ const DEFAULTS = {
   process: "Washed",
   roast: "Medium",
   roastDate: "",
+  milkBrand: "",
+  milkType: "",
   dose: "18",
   water: "290",
   temp: "94",
@@ -57,6 +60,8 @@ function formStateFromBrew(brew) {
     process: brew.process ?? DEFAULTS.process,
     roast: brew.roast_level ?? DEFAULTS.roast,
     roastDate: brew.roast_date ?? "",
+    milkBrand: brew.milk_brand ?? "",
+    milkType: brew.milk_type ?? "",
     dose: brew.dose_g == null ? "" : String(brew.dose_g),
     water: brew.water_g == null ? "" : String(brew.water_g),
     temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
@@ -200,6 +205,8 @@ export default function BrewForm({
   const [process, setProcess] = useState(init.process);
   const [roast, setRoast] = useState(init.roast);
   const [roastDate, setRoastDate] = useState(init.roastDate);
+  const [milkBrand, setMilkBrand] = useState(init.milkBrand);
+  const [milkType, setMilkType] = useState(init.milkType);
   const [dose, setDose] = useState(init.dose);
   const [water, setWater] = useState(init.water);
   const [temp, setTemp] = useState(init.temp);
@@ -234,6 +241,12 @@ export default function BrewForm({
     const seen = new Set(mine.map((d) => d.toLowerCase()));
     return [...mine, ...DRINKS.filter((d) => !seen.has(d.toLowerCase()))];
   }, [suggestions.drink]);
+
+  const milkTypeSuggestions = useMemo(() => {
+    const mine = suggestions.milkType ?? [];
+    const seen = new Set(mine.map((d) => d.toLowerCase()));
+    return [...mine, ...MILK_TYPES.filter((d) => !seen.has(d.toLowerCase()))];
+  }, [suggestions.milkType]);
 
   const ratio = useMemo(() => {
     const d = parseFloat(dose);
@@ -280,6 +293,8 @@ export default function BrewForm({
     setProcess(s.process);
     setRoast(s.roast);
     setRoastDate(s.roastDate);
+    setMilkBrand(s.milkBrand);
+    setMilkType(s.milkType);
     setDose(s.dose);
     setWater(s.water);
     setTemp(s.temp);
@@ -340,6 +355,8 @@ export default function BrewForm({
         process,
         roast_level: roast,
         roast_date: dateOrNull(roastDate),
+        milk_brand: milkBrand,
+        milk_type: milkType,
         dose_g: num(dose),
         water_g: num(water),
         water_temp_c: num(temp),
@@ -541,7 +558,7 @@ export default function BrewForm({
 
         <Divider />
 
-        {/* 03 Beans */}
+        {/* 04 Beans */}
         <StepLabel n={4} title="Beans" done={!!beanName} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
           <Field
@@ -573,8 +590,29 @@ export default function BrewForm({
 
         <Divider />
 
-        {/* 04 Parameters */}
-        <StepLabel n={5} title="Parameters" done={!!dose && !!water} />
+        {/* 05 Milk — optional; a long black just leaves this blank */}
+        <StepLabel n={5} title="Milk" done={!!milkBrand || !!milkType} />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <Field
+            label="Brand"
+            value={milkBrand}
+            onChange={setMilkBrand}
+            placeholder="Greenfields"
+            suggestions={suggestions.milkBrand}
+          />
+          <Field
+            label="Kind"
+            value={milkType}
+            onChange={setMilkType}
+            placeholder="Fresh Milk"
+            suggestions={milkTypeSuggestions}
+          />
+        </div>
+
+        <Divider />
+
+        {/* 06 Parameters */}
+        <StepLabel n={6} title="Parameters" done={!!dose && !!water} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <Field label="Dose" value={dose} onChange={setDose} mono suffix="g" />
           <Field label="Water" value={water} onChange={setWater} mono suffix="g" />
@@ -584,8 +622,8 @@ export default function BrewForm({
 
         <Divider />
 
-        {/* 05 Tasting */}
-        <StepLabel n={6} title="Tasting Notes" done={flavors.length > 0} />
+        {/* 07 Tasting */}
+        <StepLabel n={7} title="Tasting Notes" done={flavors.length > 0} />
         <div className="flex flex-wrap gap-2 mb-5">
           {FLAVORS.map((f) => (
             <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
@@ -609,15 +647,11 @@ export default function BrewForm({
                 key={i}
                 type="button"
                 onClick={() => setRating(i)}
-                aria-label={`${i} stars`}
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 18,
-                  lineHeight: 1,
-                  color: i <= rating ? TOKENS.amber : TOKENS.rule,
-                }}
+                aria-label={`${i} of 5 cups`}
+                className="p-0.5"
+                style={{ color: i <= rating ? TOKENS.amber : TOKENS.rule }}
               >
-                ●
+                <Coffee size={18} strokeWidth={i <= rating ? 2.4 : 1.8} />
               </button>
             ))}
           </div>

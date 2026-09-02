@@ -38,6 +38,20 @@ export const DRINKS = [
   "Affogato",
 ];
 
+// Starter suggestions for milk kind; like DRINKS, not a closed list.
+export const MILK_TYPES = [
+  "Fresh Milk",
+  "Full Cream",
+  "Low Fat",
+  "Skim",
+  "UHT",
+  "Lactose Free",
+  "Oat",
+  "Almond",
+  "Soy",
+  "Coconut",
+];
+
 export const METHODS = [
   "Pourover",
   "Moka Pot",

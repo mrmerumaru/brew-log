@@ -11,7 +11,7 @@
 // pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
-import { formatBrewTime, ratioOf, daysOffRoast } from "./brew";
+import { formatBrewTime, ratioOf, daysOffRoast, milkLabel } from "./brew";
 
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
@@ -41,6 +41,58 @@ const MAX_CHIP_ROWS = 2;
 const MAX_PHOTO_RATIO = 1.25;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+const CUP_SIZE = 40;
+const CUP_GAP = 10;
+const RATING_W = 5 * CUP_SIZE + 4 * CUP_GAP;
+
+/**
+ * A coffee cup, drawn as paths. Canvas can't use the React icon set, and an
+ * emoji would render as a colour glyph that clashes with the card's palette.
+ * Filled = earned rating, outline = remaining.
+ */
+function drawCup(ctx, x, y, size, filled) {
+  const bodyW = size * 0.74;
+  const bodyH = size * 0.66;
+  const top = y + size * 0.17;
+
+  // Tapered cup seen side-on.
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x + bodyW, top);
+  ctx.lineTo(x + bodyW * 0.84, top + bodyH);
+  ctx.quadraticCurveTo(
+    x + bodyW * 0.8,
+    top + bodyH + size * 0.05,
+    x + bodyW * 0.72,
+    top + bodyH + size * 0.05,
+  );
+  ctx.lineTo(x + bodyW * 0.16, top + bodyH + size * 0.05);
+  ctx.quadraticCurveTo(x + bodyW * 0.1, top + bodyH + size * 0.05, x + bodyW * 0.14, top + bodyH);
+  ctx.closePath();
+
+  if (filled) {
+    ctx.fillStyle = TOKENS.amber;
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = TOKENS.rule;
+    ctx.lineWidth = size * 0.08;
+    ctx.stroke();
+  }
+
+  // Handle on the right.
+  ctx.beginPath();
+  ctx.arc(x + bodyW, top + bodyH * 0.36, size * 0.17, -Math.PI / 2, Math.PI / 2);
+  ctx.strokeStyle = filled ? TOKENS.amber : TOKENS.rule;
+  ctx.lineWidth = size * 0.09;
+  ctx.stroke();
+}
+
+function drawRating(ctx, x, y, rating) {
+  for (let i = 0; i < 5; i += 1) {
+    drawCup(ctx, x + i * (CUP_SIZE + CUP_GAP), y, CUP_SIZE, i < rating);
+  }
+}
 
 function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -178,6 +230,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     .join(" · ");
 
   const rest = daysOffRoast(brew.roast_date, brew.created_at);
+  const milk = milkLabel(brew);
 
   const stats = [
     ["RATIO", ratioOf(brew)],
@@ -191,10 +244,12 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   const METHOD_H = 76;
   const BEANS_H = 46;
+  const MILK_H = 40;
   const STATS_H = 80;
 
   const blocks = [METHOD_H];
   if (subtitle) blocks.push(BEANS_H);
+  if (milk) blocks.push(MILK_H);
   if (stats.length) blocks.push(STATS_H);
   if (chips.height) blocks.push(chips.height);
 
@@ -228,23 +283,12 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   }
 
   // ---- Method + rating ---------------------------------------------------
-  const filled = "●".repeat(brew.rating ?? 0);
-  const empty = "●".repeat(5 - (brew.rating ?? 0));
-  ctx.font = `600 36px ${MONO}`;
-  const filledW = ctx.measureText(filled).width;
-  const ratingW = ctx.measureText(filled + empty).width;
-
   ctx.font = `700 64px ${SANS}`;
   ctx.fillStyle = TOKENS.ink;
-  ctx.fillText(truncate(ctx, headline, inner - ratingW - 32), PAD, y);
+  ctx.fillText(truncate(ctx, headline, inner - RATING_W - 32), PAD, y);
 
-  ctx.font = `600 36px ${MONO}`;
-  const ratingX = W - PAD - ratingW;
-  const ratingY = y + 18; // optical centring against the 64px method
-  ctx.fillStyle = TOKENS.amber;
-  ctx.fillText(filled, ratingX, ratingY);
-  ctx.fillStyle = TOKENS.rule;
-  ctx.fillText(empty, ratingX + filledW, ratingY);
+  // Optically centred against the 64px headline.
+  drawRating(ctx, W - PAD - RATING_W, y + 6, brew.rating ?? 0);
 
   y += METHOD_H + GAP;
 
@@ -254,6 +298,14 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(truncate(ctx, subtitle, inner), PAD, y);
     y += BEANS_H + GAP;
+  }
+
+  // ---- Milk --------------------------------------------------------------
+  if (milk) {
+    ctx.font = `500 26px ${MONO}`;
+    ctx.fillStyle = TOKENS.inkFaint;
+    ctx.fillText(truncate(ctx, milk, inner), PAD, y);
+    y += MILK_H + GAP;
   }
 
   // ---- Stats -------------------------------------------------------------

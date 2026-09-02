@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
-import { formatBrewTime, ratioOf, daysOffRoast } from "./brew";
+import { formatBrewTime, ratioOf, daysOffRoast, milkLabel } from "./brew";
 import ShareSheet from "./ShareSheet";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
@@ -74,15 +74,11 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
               // Tapping the active threshold clears it, so there's always a way
               // back to "any rating" without hunting for the reset.
               onClick={() => setMinRating(minRating === i ? 0 : i)}
-              aria-label={`At least ${i} stars`}
-              style={{
-                fontFamily: MONO,
-                fontSize: 15,
-                lineHeight: 1,
-                color: i <= minRating ? TOKENS.amber : TOKENS.rule,
-              }}
+              aria-label={`At least ${i} cups`}
+              className="p-0.5"
+              style={{ color: i <= minRating ? TOKENS.amber : TOKENS.rule }}
             >
-              ●
+              <Coffee size={14} strokeWidth={i <= minRating ? 2.4 : 1.8} />
             </button>
           ))}
         </span>
@@ -121,6 +117,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
   const brewTime = formatBrewTime(brew.brew_time_s);
   // Relative to when this brew was made, not today — see daysOffRoast.
   const rest = daysOffRoast(brew.roast_date, brew.created_at);
+  const milk = milkLabel(brew);
   // Deleting is irreversible, so the trash icon arms a confirm rather than
   // firing straight away.
   const [confirming, setConfirming] = useState(false);
@@ -160,12 +157,17 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               {brew.drink || brew.method || "Brew"}
             </h3>
             <span
-              className="shrink-0"
-              style={{ fontFamily: MONO, fontSize: 13, color: TOKENS.amber, letterSpacing: "0.05em" }}
-              aria-label={`${brew.rating ?? 0} out of 5`}
+              className="shrink-0 flex items-center gap-0.5"
+              aria-label={`${brew.rating ?? 0} of 5 cups`}
             >
-              {"●".repeat(brew.rating ?? 0)}
-              <span style={{ color: TOKENS.rule }}>{"●".repeat(5 - (brew.rating ?? 0))}</span>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Coffee
+                  key={i}
+                  size={13}
+                  strokeWidth={i <= (brew.rating ?? 0) ? 2.4 : 1.8}
+                  style={{ color: i <= (brew.rating ?? 0) ? TOKENS.amber : TOKENS.rule }}
+                />
+              ))}
             </span>
           </div>
 
@@ -178,6 +180,16 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               .filter(Boolean)
               .join(" · ") || "No bean recorded"}
           </p>
+
+          {/* Grouped with the beans line — both describe what went in the cup. */}
+          {milk && (
+            <p
+              className="text-[12px] mt-1 truncate"
+              style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
+            >
+              {milk}
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3">
             <Meta label="RATIO" value={ratio} />
@@ -329,7 +341,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
       if (method && b.method !== method) return false;
       if (minRating > 0 && (b.rating ?? 0) < minRating) return false;
       if (q) {
-        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level]
+        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level, b.milk_brand, b.milk_type]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
