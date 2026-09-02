@@ -14,6 +14,8 @@ create table if not exists brews (
   machine_brand text,
   machine_model text,
   grinder       text,
+  grind_size    numeric,        -- value on your grinder's own scale
+  grind_unit    text,           -- clicks, numbers, rotations, microns…
   bean_name     text,
   origin        text,
   process       text,

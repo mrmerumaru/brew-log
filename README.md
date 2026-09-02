@@ -127,8 +127,22 @@ hand-drawn canvas paths in the share card (`drawCup` in
 [src/shareCard.js](src/shareCard.js), since canvas can't use the React icon set
 and an emoji would clash with the palette).
 
-Not built yet: grind size and bean variety appear in the PRD's data model but
-aren't in the schema or the form yet.
+**Grind size** is a number plus a unit (`grind_size numeric`, `grind_unit text`)
+rather than free text. Grinders use incompatible scales — clicks from zero, a
+1–40 stepped dial, rotations-plus-clicks — so a bare number means nothing alone.
+But grind is never compared *across* grinders; the only question is what you set
+*your* grinder to, and within one grinder any consistent notation sorts
+correctly. Keeping it numeric means it stays filterable and sortable, and
+decimals cover micro-adjustment. The unit autocompletes and carries forward, so
+in practice you set it once per grinder.
+
+Method accepts **"Other"** with a free-text field. The real value is what gets
+stored (`"Siphon"`, never the literal `"Other"`), so history filter chips and
+share-card headlines read naturally.
+
+Not built yet: bean variety appears in the PRD's data model but isn't in the
+schema or the form. Custom flavour tags remain an open question from the PRD —
+the list is still the fixed eight from the mockup.
 
 Known limits: Supabase's built-in email sender is rate-limited to a few messages
 per hour, so sign-in links can be slow to arrive for new users — configure your

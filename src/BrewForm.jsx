@@ -7,6 +7,7 @@ import {
   MONO,
   SERIF,
   DRINKS,
+  GRIND_UNITS,
   MILK_TYPES,
   METHODS,
   PROCESSES,
@@ -26,10 +27,13 @@ import ShareSheet from "./ShareSheet";
 
 const DEFAULTS = {
   drink: "",
-  method: "Pourover",
+  methodChoice: "Pourover",
+  customMethod: "",
   machineBrand: "",
   machineModel: "",
   grinder: "",
+  grindSize: "",
+  grindUnit: "",
   beanName: "",
   origin: "",
   process: "Washed",
@@ -46,15 +50,30 @@ const DEFAULTS = {
   notes: "",
 };
 
+const METHOD_OTHER = "Other";
+
+// `method` is stored as the real value ("Siphon"), never as the literal
+// "Other" — so the history filter chips and share cards read naturally. That
+// means reloading a brew has to work out whether its method was one of the
+// preset chips or something typed by hand.
+function splitMethod(method) {
+  const value = method ?? "";
+  if (!value) return { methodChoice: DEFAULTS.methodChoice, customMethod: "" };
+  if (METHODS.includes(value)) return { methodChoice: value, customMethod: "" };
+  return { methodChoice: METHOD_OTHER, customMethod: value };
+}
+
 // Maps a saved row back onto the form's state shape. Numbers become strings
 // because the inputs are text fields, and brew_time_s becomes "m:ss".
 function formStateFromBrew(brew) {
   return {
     drink: brew.drink ?? "",
-    method: brew.method ?? DEFAULTS.method,
+    ...splitMethod(brew.method),
     machineBrand: brew.machine_brand ?? "",
     machineModel: brew.machine_model ?? "",
     grinder: brew.grinder ?? "",
+    grindSize: brew.grind_size == null ? "" : String(brew.grind_size),
+    grindUnit: brew.grind_unit ?? "",
     beanName: brew.bean_name ?? "",
     origin: brew.origin ?? "",
     process: brew.process ?? DEFAULTS.process,
@@ -196,10 +215,13 @@ export default function BrewForm({
       : DEFAULTS;
 
   const [drink, setDrink] = useState(init.drink);
-  const [method, setMethod] = useState(init.method);
+  const [methodChoice, setMethodChoice] = useState(init.methodChoice);
+  const [customMethod, setCustomMethod] = useState(init.customMethod);
   const [machineBrand, setMachineBrand] = useState(init.machineBrand);
   const [machineModel, setMachineModel] = useState(init.machineModel);
   const [grinder, setGrinder] = useState(init.grinder);
+  const [grindSize, setGrindSize] = useState(init.grindSize);
+  const [grindUnit, setGrindUnit] = useState(init.grindUnit);
   const [beanName, setBeanName] = useState(init.beanName);
   const [origin, setOrigin] = useState(init.origin);
   const [process, setProcess] = useState(init.process);
@@ -241,6 +263,23 @@ export default function BrewForm({
     const seen = new Set(mine.map((d) => d.toLowerCase()));
     return [...mine, ...DRINKS.filter((d) => !seen.has(d.toLowerCase()))];
   }, [suggestions.drink]);
+
+  const isOtherMethod = methodChoice === METHOD_OTHER;
+  // What actually gets saved. Falls back to "Other" so picking the chip and
+  // typing nothing still records something rather than an empty method.
+  const method = isOtherMethod ? customMethod.trim() || METHOD_OTHER : methodChoice;
+
+  // Only the hand-typed methods — the preset ones already have their own chips.
+  const customMethodSuggestions = useMemo(
+    () => (suggestions.method ?? []).filter((m) => !METHODS.includes(m)),
+    [suggestions.method],
+  );
+
+  const grindUnitSuggestions = useMemo(() => {
+    const mine = suggestions.grindUnit ?? [];
+    const seen = new Set(mine.map((u) => u.toLowerCase()));
+    return [...mine, ...GRIND_UNITS.filter((u) => !seen.has(u.toLowerCase()))];
+  }, [suggestions.grindUnit]);
 
   const milkTypeSuggestions = useMemo(() => {
     const mine = suggestions.milkType ?? [];
@@ -284,10 +323,13 @@ export default function BrewForm({
 
   const applyFields = (s) => {
     setDrink(s.drink);
-    setMethod(s.method);
+    setMethodChoice(s.methodChoice);
+    setCustomMethod(s.customMethod);
     setMachineBrand(s.machineBrand);
     setMachineModel(s.machineModel);
     setGrinder(s.grinder);
+    setGrindSize(s.grindSize);
+    setGrindUnit(s.grindUnit);
     setBeanName(s.beanName);
     setOrigin(s.origin);
     setProcess(s.process);
@@ -350,6 +392,8 @@ export default function BrewForm({
         machine_brand: machineBrand,
         machine_model: machineModel,
         grinder,
+        grind_size: num(grindSize),
+        grind_unit: grindUnit,
         bean_name: beanName,
         origin,
         process,
@@ -524,9 +568,33 @@ export default function BrewForm({
         <StepLabel n={2} title="Method" done={!!method} />
         <div className="flex flex-wrap gap-2">
           {METHODS.map((m) => (
-            <Chip key={m} label={m} active={method === m} onClick={() => setMethod(m)} />
+            <Chip
+              key={m}
+              label={m}
+              active={methodChoice === m}
+              onClick={() => setMethodChoice(m)}
+            />
           ))}
+          {/* Rendered separately, not part of METHODS — "Other" is an
+              affordance, never a stored value. */}
+          <Chip
+            label={METHOD_OTHER}
+            active={isOtherMethod}
+            onClick={() => setMethodChoice(METHOD_OTHER)}
+          />
         </div>
+
+        {isOtherMethod && (
+          <div className="mt-4">
+            <Field
+              label="Which method?"
+              value={customMethod}
+              onChange={setCustomMethod}
+              placeholder="Siphon"
+              suggestions={customMethodSuggestions}
+            />
+          </div>
+        )}
 
         <Divider />
 
@@ -553,6 +621,25 @@ export default function BrewForm({
             onChange={setGrinder}
             placeholder="Comandante C40"
             suggestions={suggestions.grinder}
+          />
+        </div>
+
+        {/* Grind size and its unit sit together: the number is meaningless
+            without knowing whether it counts clicks, dial numbers or microns. */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4 mt-4">
+          <Field
+            label="Grind size"
+            value={grindSize}
+            onChange={setGrindSize}
+            placeholder="18"
+            mono
+          />
+          <Field
+            label="Unit"
+            value={grindUnit}
+            onChange={setGrindUnit}
+            placeholder="clicks"
+            suggestions={grindUnitSuggestions}
           />
         </div>
 

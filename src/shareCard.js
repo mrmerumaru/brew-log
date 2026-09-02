@@ -233,10 +233,14 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   const milk = milkLabel(brew);
 
   const stats = [
-    ["RATIO", ratioOf(brew)],
+    // Compact ratio: six stat columns leave ~140px, and "1 : 16.1" overflows.
+    ["RATIO", ratioOf(brew, { compact: true })],
     ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
     ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
     ["TIME", formatBrewTime(brew.brew_time_s)],
+    // Number only — "18 clicks" is far too wide for a stat column, and the
+    // unit is recoverable from the app.
+    ["GRIND", brew.grind_size == null ? null : String(brew.grind_size)],
     ["OFF ROAST", rest == null ? null : `${rest}d`],
   ].filter(([, v]) => v);
 

@@ -38,6 +38,11 @@ export const DRINKS = [
   "Affogato",
 ];
 
+// Grinders use incompatible scales, so the unit travels with the number.
+// Free text with these as suggestions — set once per grinder, then carried
+// forward automatically.
+export const GRIND_UNITS = ["clicks", "numbers", "rotations", "microns", "marks", "steps"];
+
 // Starter suggestions for milk kind; like DRINKS, not a closed list.
 export const MILK_TYPES = [
   "Fresh Milk",

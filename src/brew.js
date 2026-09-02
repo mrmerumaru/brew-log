@@ -88,9 +88,20 @@ export function milkLabel(brew) {
   return parts.length ? parts.join(" · ") : null;
 }
 
-export function ratioOf(brew) {
+// "18 clicks", or just "18" if no unit was recorded. Null when there's no
+// grind size, so callers can omit the field.
+export function grindLabel(brew) {
+  if (brew?.grind_size == null) return null;
+  const unit = brew.grind_unit?.trim();
+  return unit ? `${brew.grind_size} ${unit}` : String(brew.grind_size);
+}
+
+// `compact` drops the spaces for the share card, where five or six stat columns
+// leave too little width for "1 : 16.1".
+export function ratioOf(brew, { compact = false } = {}) {
   if (!brew.dose_g || !brew.water_g) return null;
-  return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
+  const value = (brew.water_g / brew.dose_g).toFixed(1);
+  return compact ? `1:${value}` : `1 : ${value}`;
 }
 
 // Distinct non-empty values per text field, most-recently-used first, for the
@@ -99,9 +110,11 @@ export function ratioOf(brew) {
 export function suggestionsFrom(rows = []) {
   const fields = {
     drink: "drink",
+    method: "method",
     machineBrand: "machine_brand",
     machineModel: "machine_model",
     grinder: "grinder",
+    grindUnit: "grind_unit",
     beanName: "bean_name",
     origin: "origin",
     milkBrand: "milk_brand",
