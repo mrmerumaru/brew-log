@@ -1,29 +1,39 @@
 // Pure helpers shared by BrewForm and BrewHistory. No React, no Supabase —
 // safe to import from anywhere and easy to reason about in isolation.
 
-// The Time field is labelled "min" and defaults to "2:45", so:
-//   "2:45" -> 165s   (m:ss, the common case)
-//   "2.5"  -> 150s   (bare number = decimal minutes, matching the label)
-// Returns null for anything unparseable, so the column stays null rather than 0.
-export function parseBrewTime(raw) {
-  if (typeof raw !== "string" && typeof raw !== "number") return null;
-  const value = String(raw).trim();
-  if (!value) return null;
+// Brew time is entered as two separate numeric inputs rather than one "m:ss"
+// text field: typing a colon on a phone means switching keyboard layouts and
+// back, which is a real hassle several times a day. Two number pads, no colon.
 
-  if (value.includes(":")) {
-    const [m, s] = value.split(":");
-    const minutes = parseInt(m, 10);
-    const seconds = parseInt(s, 10);
-    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
-    return minutes * 60 + seconds;
-  }
-
-  const minutes = parseFloat(value);
-  if (Number.isNaN(minutes)) return null;
-  return Math.round(minutes * 60);
+/** Seconds -> the pair of form fields. */
+export function splitSeconds(total) {
+  if (total == null) return { timeMin: "", timeSec: "" };
+  return { timeMin: String(Math.floor(total / 60)), timeSec: String(total % 60) };
 }
 
-// Inverse of parseBrewTime, for display and for refilling the form when editing.
+/**
+ * The pair of form fields -> seconds. Null only when both are blank, so the
+ * column stays null rather than 0 for an unrecorded time.
+ *
+ * Seconds over 59 roll up naturally (90 in the seconds box is 1:30), so there's
+ * no need to do the division yourself for a long brew.
+ */
+export function joinSeconds(minutes, seconds) {
+  const m = parseInt(String(minutes ?? "").trim(), 10);
+  const s = parseInt(String(seconds ?? "").trim(), 10);
+  const hasM = Number.isFinite(m);
+  const hasS = Number.isFinite(s);
+
+  if (!hasM && !hasS) return null;
+
+  const mm = hasM ? m : 0;
+  const ss = hasS ? s : 0;
+  if (mm < 0 || ss < 0) return null;
+
+  return mm * 60 + ss;
+}
+
+// Seconds -> "m:ss", for display in history and on the share card.
 export function formatBrewTime(seconds) {
   if (seconds == null) return null;
   const m = Math.floor(seconds / 60);

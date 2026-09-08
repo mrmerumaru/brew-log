@@ -136,6 +136,12 @@ correctly. Keeping it numeric means it stays filterable and sortable, and
 decimals cover micro-adjustment. The unit autocompletes and carries forward, so
 in practice you set it once per grinder.
 
+Brew time is **two integer boxes** (min / sec) rather than one `m:ss` text
+field: typing a colon on a phone means switching keyboard layout and back, every
+single brew. All the numeric fields carry `inputMode` so phones open a number pad
+instead of the full keyboard. Seconds over 59 roll up on save, so 90 in the
+seconds box records 1:30.
+
 Method accepts **"Other"** with a free-text field. The real value is what gets
 stored (`"Siphon"`, never the literal `"Other"`), so history filter chips and
 share-card headlines read naturally.

@@ -16,8 +16,8 @@ import {
   PHOTO_BUCKET,
 } from "./tokens";
 import {
-  parseBrewTime,
-  formatBrewTime,
+  splitSeconds,
+  joinSeconds,
   fileExtension,
   num,
   dateOrNull,
@@ -44,7 +44,8 @@ const DEFAULTS = {
   dose: "18",
   water: "290",
   temp: "94",
-  time: "2:45",
+  timeMin: "2",
+  timeSec: "45",
   flavors: ["Fruity"],
   rating: 4,
   notes: "",
@@ -64,7 +65,7 @@ function splitMethod(method) {
 }
 
 // Maps a saved row back onto the form's state shape. Numbers become strings
-// because the inputs are text fields, and brew_time_s becomes "m:ss".
+// because the inputs are text fields, and brew_time_s splits into two boxes.
 function formStateFromBrew(brew) {
   return {
     drink: brew.drink ?? "",
@@ -84,7 +85,7 @@ function formStateFromBrew(brew) {
     dose: brew.dose_g == null ? "" : String(brew.dose_g),
     water: brew.water_g == null ? "" : String(brew.water_g),
     temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
-    time: formatBrewTime(brew.brew_time_s) ?? "",
+    ...splitSeconds(brew.brew_time_s),
     flavors: brew.flavor_tags ?? [],
     rating: brew.rating ?? 0,
     notes: brew.notes ?? "",
@@ -145,7 +146,19 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, mono, suffix, suggestions, type = "text" }) {
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  mono,
+  suffix,
+  suggestions,
+  type = "text",
+  // "numeric" / "decimal" make phones open a number pad instead of the full
+  // keyboard — no layout switching to reach digits or a decimal point.
+  inputMode,
+}) {
   // A native <datalist> gives autocomplete without a custom dropdown, and still
   // lets you type a value that isn't in the list.
   const listId = useId();
@@ -162,6 +175,7 @@ function Field({ label, value, onChange, placeholder, mono, suffix, suggestions,
       <div className="flex items-baseline gap-1">
         <input
           type={type}
+          inputMode={inputMode}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -232,7 +246,8 @@ export default function BrewForm({
   const [dose, setDose] = useState(init.dose);
   const [water, setWater] = useState(init.water);
   const [temp, setTemp] = useState(init.temp);
-  const [time, setTime] = useState(init.time);
+  const [timeMin, setTimeMin] = useState(init.timeMin);
+  const [timeSec, setTimeSec] = useState(init.timeSec);
   const [flavors, setFlavors] = useState(init.flavors);
   const [rating, setRating] = useState(init.rating);
   const [notes, setNotes] = useState(init.notes);
@@ -340,7 +355,8 @@ export default function BrewForm({
     setDose(s.dose);
     setWater(s.water);
     setTemp(s.temp);
-    setTime(s.time);
+    setTimeMin(s.timeMin);
+    setTimeSec(s.timeSec);
     setFlavors(s.flavors);
     setRating(s.rating);
     setNotes(s.notes);
@@ -404,7 +420,7 @@ export default function BrewForm({
         dose_g: num(dose),
         water_g: num(water),
         water_temp_c: num(temp),
-        brew_time_s: parseBrewTime(time),
+        brew_time_s: joinSeconds(timeMin, timeSec),
         flavor_tags: flavors,
         rating,
         notes,
@@ -633,6 +649,7 @@ export default function BrewForm({
             onChange={setGrindSize}
             placeholder="18"
             mono
+            inputMode="decimal"
           />
           <Field
             label="Unit"
@@ -701,10 +718,53 @@ export default function BrewForm({
         {/* 06 Parameters */}
         <StepLabel n={6} title="Parameters" done={!!dose && !!water} />
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Field label="Dose" value={dose} onChange={setDose} mono suffix="g" />
-          <Field label="Water" value={water} onChange={setWater} mono suffix="g" />
-          <Field label="Temp" value={temp} onChange={setTemp} mono suffix="°C" />
-          <Field label="Time" value={time} onChange={setTime} mono suffix="min" />
+          <Field
+            label="Dose"
+            value={dose}
+            onChange={setDose}
+            mono
+            suffix="g"
+            inputMode="decimal"
+          />
+          <Field
+            label="Water"
+            value={water}
+            onChange={setWater}
+            mono
+            suffix="g"
+            inputMode="decimal"
+          />
+          <Field
+            label="Temp"
+            value={temp}
+            onChange={setTemp}
+            mono
+            suffix="°C"
+            inputMode="decimal"
+          />
+          {/* Two integer boxes instead of one "m:ss" field — no colon to reach
+              for, and seconds over 59 roll up on save. */}
+          <div className="grid grid-cols-2 gap-x-3">
+            <Field
+              label="Time"
+              value={timeMin}
+              onChange={setTimeMin}
+              mono
+              suffix="min"
+              inputMode="numeric"
+              placeholder="2"
+            />
+            <Field
+              // Blank label keeps this box aligned with the Time box beside it.
+              label={" "}
+              value={timeSec}
+              onChange={setTimeSec}
+              mono
+              suffix="sec"
+              inputMode="numeric"
+              placeholder="45"
+            />
+          </div>
         </div>
 
         <Divider />
