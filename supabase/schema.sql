@@ -17,6 +17,7 @@ create table if not exists brews (
   grind_size    numeric,        -- value on your grinder's own scale
   grind_unit    text,           -- clicks, numbers, rotations, microns…
   bean_name     text,
+  bean_type     text,           -- Single Origin or Blend
   origin        text,
   process       text,
   roast_level   text,

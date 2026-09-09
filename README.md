@@ -115,6 +115,11 @@ card, with the method dropping to the secondary line. It's a free-text field
 suggested from `DRINKS` in [src/tokens.js](src/tokens.js) plus whatever you've
 logged before, so it isn't a closed list.
 
+Beans can be marked **Single Origin** or **Blend**. The chips are deselectable
+and the column is nullable with no default, so a bag you're unsure about stays
+unrecorded rather than being guessed at — which also means the brews logged
+before this existed aren't retroactively mislabelled.
+
 Beans also carry a **roast date**, from which the app derives days-off-roast —
 shown as `OFF ROAST` in history and on the share card. That's measured against
 each brew's own `created_at` rather than today, so an old entry still reports how

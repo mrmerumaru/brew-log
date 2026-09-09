@@ -66,6 +66,10 @@ export const METHODS = [
   "AeroPress",
   "Cold Brew",
 ];
+
+// Deselectable in the form, so "not recorded" is still expressible.
+export const BEAN_TYPES = ["Single Origin", "Blend"];
+
 export const PROCESSES = ["Washed", "Natural", "Honey", "Anaerobic"];
 export const ROASTS = ["Light", "Medium", "Dark"];
 export const FLAVORS = [

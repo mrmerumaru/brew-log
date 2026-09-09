@@ -197,6 +197,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             <Meta label="DOSE" value={brew.dose_g ? `${brew.dose_g}g` : null} />
             <Meta label="TEMP" value={brew.water_temp_c ? `${brew.water_temp_c}°C` : null} />
             <Meta label="TIME" value={brewTime} />
+            <Meta label="BEANS" value={brew.bean_type} />
             <Meta label="GRIND" value={grind} />
             <Meta label="OFF ROAST" value={rest == null ? null : `${rest}d`} />
           </div>
@@ -343,7 +344,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
       if (method && b.method !== method) return false;
       if (minRating > 0 && (b.rating ?? 0) < minRating) return false;
       if (q) {
-        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level, b.milk_brand, b.milk_type]
+        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level, b.milk_brand, b.milk_type, b.bean_type]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();

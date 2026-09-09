@@ -6,6 +6,7 @@ import {
   SANS,
   MONO,
   SERIF,
+  BEAN_TYPES,
   DRINKS,
   GRIND_UNITS,
   MILK_TYPES,
@@ -35,6 +36,7 @@ const DEFAULTS = {
   grindSize: "",
   grindUnit: "",
   beanName: "",
+  beanType: "",
   origin: "",
   process: "Washed",
   roast: "Medium",
@@ -76,6 +78,7 @@ function formStateFromBrew(brew) {
     grindSize: brew.grind_size == null ? "" : String(brew.grind_size),
     grindUnit: brew.grind_unit ?? "",
     beanName: brew.bean_name ?? "",
+    beanType: brew.bean_type ?? "",
     origin: brew.origin ?? "",
     process: brew.process ?? DEFAULTS.process,
     roast: brew.roast_level ?? DEFAULTS.roast,
@@ -237,6 +240,7 @@ export default function BrewForm({
   const [grindSize, setGrindSize] = useState(init.grindSize);
   const [grindUnit, setGrindUnit] = useState(init.grindUnit);
   const [beanName, setBeanName] = useState(init.beanName);
+  const [beanType, setBeanType] = useState(init.beanType);
   const [origin, setOrigin] = useState(init.origin);
   const [process, setProcess] = useState(init.process);
   const [roast, setRoast] = useState(init.roast);
@@ -346,6 +350,7 @@ export default function BrewForm({
     setGrindSize(s.grindSize);
     setGrindUnit(s.grindUnit);
     setBeanName(s.beanName);
+    setBeanType(s.beanType);
     setOrigin(s.origin);
     setProcess(s.process);
     setRoast(s.roast);
@@ -411,6 +416,8 @@ export default function BrewForm({
         grind_size: num(grindSize),
         grind_unit: grindUnit,
         bean_name: beanName,
+        // null rather than "" so "not recorded" stays distinguishable.
+        bean_type: beanType || null,
         origin,
         process,
         roast_level: roast,
@@ -680,6 +687,18 @@ export default function BrewForm({
             suggestions={suggestions.origin}
           />
           <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
+        </div>
+        {/* Single origin vs blend. Tapping the active chip clears it, so a bag
+            you're unsure about stays unrecorded rather than being guessed. */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {BEAN_TYPES.map((t) => (
+            <Chip
+              key={t}
+              label={t}
+              active={beanType === t}
+              onClick={() => setBeanType(beanType === t ? "" : t)}
+            />
+          ))}
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {PROCESSES.map((p) => (
