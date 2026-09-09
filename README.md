@@ -95,6 +95,11 @@ text fields autocomplete from distinct values across your history via
 works retroactively on brews already logged. Revisit the normalized tables only
 if you need named setups that exist independently of any brew.
 
+The card shows drink, method, beans, milk, rating, ratio, dose, temp and time.
+Grind size and days-off-roast are deliberately left off it — still recorded on
+every brew and shown in history, but they're personal repeatability data that
+crowded the card without meaning much to anyone else.
+
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design
 suggested — brew photos come from cross-origin signed URLs, which taint a canvas

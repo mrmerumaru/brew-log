@@ -171,9 +171,12 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
         style={{ background: TOKENS.card, border: `1px solid ${TOKENS.rule}` }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Sticky within the dialog's own scroll container, so the close button
+            stays reachable once the preview pushes the content past one
+            screen. */}
         <div
-          className="px-5 py-4 flex items-center justify-between"
-          style={{ borderBottom: `1px solid ${TOKENS.rule}` }}
+          className="px-5 py-4 flex items-center justify-between sticky top-0 z-10"
+          style={{ borderBottom: `1px solid ${TOKENS.rule}`, background: TOKENS.card }}
         >
           <span
             className="text-[11px] uppercase tracking-[0.12em]"

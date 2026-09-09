@@ -106,12 +106,9 @@ export function grindLabel(brew) {
   return unit ? `${brew.grind_size} ${unit}` : String(brew.grind_size);
 }
 
-// `compact` drops the spaces for the share card, where five or six stat columns
-// leave too little width for "1 : 16.1".
-export function ratioOf(brew, { compact = false } = {}) {
+export function ratioOf(brew) {
   if (!brew.dose_g || !brew.water_g) return null;
-  const value = (brew.water_g / brew.dose_g).toFixed(1);
-  return compact ? `1:${value}` : `1 : ${value}`;
+  return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
 }
 
 // Distinct non-empty values per text field, most-recently-used first, for the

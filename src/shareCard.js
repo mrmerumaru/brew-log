@@ -11,7 +11,7 @@
 // pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
-import { formatBrewTime, ratioOf, daysOffRoast, milkLabel } from "./brew";
+import { formatBrewTime, ratioOf, milkLabel } from "./brew";
 
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
@@ -51,7 +51,7 @@ const RATING_W = 5 * CUP_SIZE + 4 * CUP_GAP;
  * emoji would render as a colour glyph that clashes with the card's palette.
  * Filled = earned rating, outline = remaining.
  */
-function drawCup(ctx, x, y, size, filled) {
+function drawCup(ctx, x, y, size, filled, color) {
   const bodyW = size * 0.74;
   const bodyH = size * 0.66;
   const top = y + size * 0.17;
@@ -72,10 +72,10 @@ function drawCup(ctx, x, y, size, filled) {
   ctx.closePath();
 
   if (filled) {
-    ctx.fillStyle = TOKENS.amber;
+    ctx.fillStyle = color;
     ctx.fill();
   } else {
-    ctx.strokeStyle = TOKENS.rule;
+    ctx.strokeStyle = color;
     ctx.lineWidth = size * 0.08;
     ctx.stroke();
   }
@@ -83,14 +83,22 @@ function drawCup(ctx, x, y, size, filled) {
   // Handle on the right.
   ctx.beginPath();
   ctx.arc(x + bodyW, top + bodyH * 0.36, size * 0.17, -Math.PI / 2, Math.PI / 2);
-  ctx.strokeStyle = filled ? TOKENS.amber : TOKENS.rule;
+  ctx.strokeStyle = color;
   ctx.lineWidth = size * 0.09;
   ctx.stroke();
 }
 
 function drawRating(ctx, x, y, rating) {
   for (let i = 0; i < 5; i += 1) {
-    drawCup(ctx, x + i * (CUP_SIZE + CUP_GAP), y, CUP_SIZE, i < rating);
+    const filled = i < rating;
+    drawCup(
+      ctx,
+      x + i * (CUP_SIZE + CUP_GAP),
+      y,
+      CUP_SIZE,
+      filled,
+      filled ? TOKENS.amber : TOKENS.rule,
+    );
   }
 }
 
@@ -229,19 +237,16 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     .filter(Boolean)
     .join(" · ");
 
-  const rest = daysOffRoast(brew.roast_date, brew.created_at);
   const milk = milkLabel(brew);
 
+  // Grind size and days-off-roast are deliberately absent: they're personal
+  // repeatability data, still recorded on the brew and shown in history, but
+  // they crowded the card without meaning much to anyone else.
   const stats = [
-    // Compact ratio: six stat columns leave ~140px, and "1 : 16.1" overflows.
-    ["RATIO", ratioOf(brew, { compact: true })],
+    ["RATIO", ratioOf(brew)],
     ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
     ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
     ["TIME", formatBrewTime(brew.brew_time_s)],
-    // Number only — "18 clicks" is far too wide for a stat column, and the
-    // unit is recoverable from the app.
-    ["GRIND", brew.grind_size == null ? null : String(brew.grind_size)],
-    ["OFF ROAST", rest == null ? null : `${rest}d`],
   ].filter(([, v]) => v);
 
   const chips = layoutChips(ctx, brew.flavor_tags ?? [], inner);
@@ -359,9 +364,14 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   ctx.setLineDash([]);
 
   const footerTextY = footerLineY + 26;
+
+  // Cup mark ahead of the wordmark, same green.
+  const MARK_SIZE = 26;
+  drawCup(ctx, PAD, footerTextY - 3, MARK_SIZE, true, TOKENS.green);
+
   ctx.font = `700 22px ${SANS}`;
   ctx.fillStyle = TOKENS.green;
-  ctx.fillText("BREW LOG", PAD, footerTextY);
+  ctx.fillText("BREW LOG", PAD + MARK_SIZE + 10, footerTextY);
 
   if (brew.created_at) {
     const date = new Date(brew.created_at).toLocaleDateString(undefined, {
