@@ -131,8 +131,8 @@ we can't do in memory.
 
 The share card puts this on two lines under the drink: **"Espresso, Elephant
 Grounds"** (method, roastery) then **"Brazil (50%), Aceh Gayo (50%)"** — or just
-the origin for a single origin. A component's own lot name takes precedence over
-its origin on that second line.
+the origin for a single origin. Each component shows its origin, falling back to
+its lot name only when no origin was recorded.
 
 Percentages are advisory: the form shows a running total and marks anything that
 isn't 100%, but never blocks a save. Roast level and roast date stay on the brew

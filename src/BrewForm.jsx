@@ -780,8 +780,8 @@ export default function BrewForm({
                     inputMode="decimal"
                     suffix="%"
                   />
-                  {/* A specific lot or varietal, if the bag names one. Takes
-                      precedence over the origin on the share card. */}
+                  {/* A specific lot or varietal, if the bag names one. Shown on
+                      the share card only when this component has no origin. */}
                   <Field
                     label="Lot / bean"
                     value={c.name}

@@ -138,13 +138,13 @@ export function percentTotal(components = []) {
  * blend. The roastery is NOT included — it lives on `bean_name` and applies to
  * the whole bag, so the card can put it on its own line.
  *
- * A component's own name wins over its origin when both are given, on the
- * assumption that a specific lot name is the more useful identifier.
+ * Origin wins when both it and a lot name are given; the lot name is only a
+ * fallback for a component with no origin recorded.
  */
 export function blendLabel(brew) {
   const parts = (Array.isArray(brew?.blend_components) ? brew.blend_components : [])
     .map((c) => {
-      const who = c?.name?.trim() || c?.origin?.trim() || "";
+      const who = c?.origin?.trim() || c?.name?.trim() || "";
       const pct = c?.percent == null ? "" : `(${c.percent}%)`;
       return [who, pct].filter(Boolean).join(" ");
     })
