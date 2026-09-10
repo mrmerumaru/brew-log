@@ -133,32 +133,35 @@ export function percentTotal(components = []) {
   }, 0);
 }
 
-/** "Brazil 50% + Indonesia 50%", or null when this isn't a blend. */
+/**
+ * The beans in a blend: "Brazil (50%), Aceh Gayo (50%)". Null when this isn't a
+ * blend. The roastery is NOT included — it lives on `bean_name` and applies to
+ * the whole bag, so the card can put it on its own line.
+ *
+ * A component's own name wins over its origin when both are given, on the
+ * assumption that a specific lot name is the more useful identifier.
+ */
 export function blendLabel(brew) {
   const parts = (Array.isArray(brew?.blend_components) ? brew.blend_components : [])
     .map((c) => {
-      const who = [c?.name, c?.origin]
-        .map((s) => s?.trim())
-        .filter(Boolean)
-        .join(" · ");
-      const pct = c?.percent == null ? "" : `${who ? " " : ""}${c.percent}%`;
-      return `${who}${pct}`.trim();
+      const who = c?.name?.trim() || c?.origin?.trim() || "";
+      const pct = c?.percent == null ? "" : `(${c.percent}%)`;
+      return [who, pct].filter(Boolean).join(" ");
     })
     .filter(Boolean);
 
-  return parts.length ? parts.join(" + ") : null;
+  return parts.length ? parts.join(", ") : null;
 }
 
-/** How the beans read in history and on the share card, blend or not. */
-export function beansLabel(brew) {
-  const blend = blendLabel(brew);
-  if (blend) return blend;
+/** Just the beans, without the roastery: an origin, or a blend's components. */
+export function originLabel(brew) {
+  return blendLabel(brew) ?? brew?.origin?.trim() ?? null;
+}
 
-  const single = [brew?.bean_name, brew?.origin]
-    .map((s) => s?.trim())
-    .filter(Boolean)
-    .join(" · ");
-  return single || null;
+/** Roastery plus beans on one line, for the history card. */
+export function beansLabel(brew) {
+  const parts = [brew?.bean_name?.trim(), originLabel(brew)].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 // "Greenfields · Fresh Milk", or just whichever half was filled in. Null when

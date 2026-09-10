@@ -11,7 +11,7 @@
 // pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
-import { formatBrewTime, ratioOf, milkLabel, beansLabel } from "./brew";
+import { formatBrewTime, ratioOf, milkLabel, originLabel } from "./brew";
 
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
@@ -233,9 +233,13 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // The drink is the headline. When there is one, the brewing method drops to
   // the secondary line rather than disappearing.
   const headline = brew.drink || brew.method || "Brew";
-  const subtitle = [brew.drink ? brew.method : null, beansLabel(brew)]
+  // Two lines under the headline: how it was made and by whom, then the beans
+  // themselves. "Espresso, Elephant Grounds" / "Brazil (50%), Aceh Gayo (50%)".
+  // Method is omitted when it's already the headline (no drink recorded).
+  const madeLine = [brew.drink ? brew.method : null, brew.bean_name?.trim()]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
+  const beanLine = originLabel(brew);
 
   const milk = milkLabel(brew);
 
@@ -252,12 +256,13 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   const chips = layoutChips(ctx, brew.flavor_tags ?? [], inner);
 
   const METHOD_H = 76;
-  const BEANS_H = 46;
+  const LINE_H = 46;
   const MILK_H = 40;
   const STATS_H = 80;
 
   const blocks = [METHOD_H];
-  if (subtitle) blocks.push(BEANS_H);
+  if (madeLine) blocks.push(LINE_H);
+  if (beanLine) blocks.push(LINE_H);
   if (milk) blocks.push(MILK_H);
   if (stats.length) blocks.push(STATS_H);
   if (chips.height) blocks.push(chips.height);
@@ -302,11 +307,19 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   y += METHOD_H + GAP;
 
   // ---- Beans -------------------------------------------------------------
-  if (subtitle) {
+  if (madeLine) {
     ctx.font = `400 34px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(truncate(ctx, subtitle, inner), PAD, y);
-    y += BEANS_H + GAP;
+    ctx.fillText(truncate(ctx, madeLine, inner), PAD, y);
+    y += LINE_H + GAP;
+  }
+
+  // ---- Beans -------------------------------------------------------------
+  if (beanLine) {
+    ctx.font = `400 30px ${SERIF}`;
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(truncate(ctx, beanLine, inner), PAD, y);
+    y += LINE_H + GAP;
   }
 
   // ---- Milk --------------------------------------------------------------

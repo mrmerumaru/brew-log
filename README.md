@@ -121,11 +121,18 @@ the form asks for. Single origin uses the flat `bean_name` / `origin` /
 five beans, each with its own name, origin, process and percentage share, which
 reads back as "Brazil 50% + Indonesia 50%" in history and on the card.
 
-Exactly one of the two representations is ever stored: saving a blend nulls the
-flat columns and vice versa, so they can't hold contradictory versions of the
-same beans. `jsonb` rather than a `brew_beans` table because the app already
-fetches every row and filters client-side — a relational table would add a join
-and an RLS policy without enabling any query we can't do in memory.
+`bean_name` is the **roastery** and applies to the whole bag either way — a
+blend is sold as one bag by one roaster. Only `origin` and `process` are
+per-component, and a blend nulls those so the two representations can't hold
+contradictory versions of the same beans. `jsonb` rather than a `brew_beans`
+table because the app already fetches every row and filters client-side — a
+relational table would add a join and an RLS policy without enabling any query
+we can't do in memory.
+
+The share card puts this on two lines under the drink: **"Espresso, Elephant
+Grounds"** (method, roastery) then **"Brazil (50%), Aceh Gayo (50%)"** — or just
+the origin for a single origin. A component's own lot name takes precedence over
+its origin on that second line.
 
 Percentages are advisory: the form shows a running total and marks anything that
 isn't 100%, but never blocks a save. Roast level and roast date stay on the brew

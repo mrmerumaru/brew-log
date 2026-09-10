@@ -444,10 +444,11 @@ export default function BrewForm({
         grind_unit: grindUnit,
         // null rather than "" so "not recorded" stays distinguishable.
         bean_type: beanType || null,
-        // Exactly one representation is stored. A blend clears the flat bean
-        // columns, a single origin clears the components — so the two can never
-        // hold contradictory versions of the same beans.
-        bean_name: isBlend ? null : beanName,
+        // The roastery applies to the whole bag, blend or not, so bean_name is
+        // always kept. Only origin and process are per-component in a blend,
+        // and those are cleared so the two representations can never hold
+        // contradictory versions of the same beans.
+        bean_name: beanName,
         origin: isBlend ? null : origin,
         process: isBlend ? null : process,
         blend_components: isBlend ? componentsToPayload(components) : null,
@@ -719,6 +720,18 @@ export default function BrewForm({
 
         {isBlend ? (
           <>
+            {/* The roastery covers the whole bag — a blend is sold as one bag
+                by one roaster — so it sits above the per-bean rows. */}
+            <div className="mb-5">
+              <Field
+                label="Roastery"
+                value={beanName}
+                onChange={setBeanName}
+                placeholder="Elephant Grounds"
+                suggestions={suggestions.beanName}
+              />
+            </div>
+
             {components.map((c, i) => (
               <div
                 key={i}
@@ -767,12 +780,13 @@ export default function BrewForm({
                     inputMode="decimal"
                     suffix="%"
                   />
+                  {/* A specific lot or varietal, if the bag names one. Takes
+                      precedence over the origin on the share card. */}
                   <Field
-                    label="Name / roaster"
+                    label="Lot / bean"
                     value={c.name}
                     onChange={(v) => updateComponent(i, "name", v)}
                     placeholder="Optional"
-                    suggestions={suggestions.beanName}
                   />
                   {/* A datalist rather than chips: process repeats per bean, and
                       four chip rows per component would swamp the form. */}
