@@ -91,6 +91,76 @@ export function num(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+// --- Blends ---------------------------------------------------------------
+// A blend is stored as an array on `blend_components`; a single origin uses the
+// flat bean_name / origin / process columns. Only one of the two is ever
+// populated, so there's no chance of the pair disagreeing.
+
+export const MAX_BLEND_COMPONENTS = 5;
+export const BLANK_COMPONENT = { name: "", origin: "", process: "", percent: "" };
+
+export function componentsFromBrew(brew) {
+  const raw = Array.isArray(brew?.blend_components) ? brew.blend_components : [];
+  const rows = raw.map((c) => ({
+    name: c?.name ?? "",
+    origin: c?.origin ?? "",
+    process: c?.process ?? "",
+    percent: c?.percent == null ? "" : String(c.percent),
+  }));
+  // Two blank rows is the useful starting point — a blend of one isn't a blend.
+  return rows.length ? rows : [{ ...BLANK_COMPONENT }, { ...BLANK_COMPONENT }];
+}
+
+/** Form rows -> what gets stored. Drops entirely blank rows; null if none left. */
+export function componentsToPayload(components = []) {
+  const cleaned = components
+    .map((c) => ({
+      name: (c?.name ?? "").trim(),
+      origin: (c?.origin ?? "").trim(),
+      process: (c?.process ?? "").trim(),
+      percent: num(c?.percent),
+    }))
+    .filter((c) => c.name || c.origin || c.process || c.percent != null);
+
+  return cleaned.length ? cleaned : null;
+}
+
+/** Sum of the percentages actually filled in, for the running total. */
+export function percentTotal(components = []) {
+  return components.reduce((sum, c) => {
+    const p = num(c?.percent);
+    return p == null ? sum : sum + p;
+  }, 0);
+}
+
+/** "Brazil 50% + Indonesia 50%", or null when this isn't a blend. */
+export function blendLabel(brew) {
+  const parts = (Array.isArray(brew?.blend_components) ? brew.blend_components : [])
+    .map((c) => {
+      const who = [c?.name, c?.origin]
+        .map((s) => s?.trim())
+        .filter(Boolean)
+        .join(" · ");
+      const pct = c?.percent == null ? "" : `${who ? " " : ""}${c.percent}%`;
+      return `${who}${pct}`.trim();
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts.join(" + ") : null;
+}
+
+/** How the beans read in history and on the share card, blend or not. */
+export function beansLabel(brew) {
+  const blend = blendLabel(brew);
+  if (blend) return blend;
+
+  const single = [brew?.bean_name, brew?.origin]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(" · ");
+  return single || null;
+}
+
 // "Greenfields · Fresh Milk", or just whichever half was filled in. Null when
 // there's no milk, so callers can hide the line entirely.
 export function milkLabel(brew) {
@@ -137,6 +207,18 @@ export function suggestionsFrom(rows = []) {
     for (const row of rows) {
       const value = row?.[column]?.trim();
       if (value && !seen.has(value.toLowerCase())) seen.set(value.toLowerCase(), value);
+
+      // Bean names and origins also live inside blends. Without this, an origin
+      // you've only ever used in a blend wouldn't autocomplete.
+      if (key === "beanName" || key === "origin") {
+        const field = key === "beanName" ? "name" : "origin";
+        for (const c of Array.isArray(row?.blend_components) ? row.blend_components : []) {
+          const nested = c?.[field]?.trim();
+          if (nested && !seen.has(nested.toLowerCase())) {
+            seen.set(nested.toLowerCase(), nested);
+          }
+        }
+      }
     }
     out[key] = [...seen.values()];
   }

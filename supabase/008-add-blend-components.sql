@@ -1,0 +1,22 @@
+-- Migration 008 — blends made of several beans.
+--
+-- Run this in the Supabase dashboard: SQL Editor -> New query -> Run.
+-- schema.sql now includes this column for fresh setups.
+--
+-- A blend has more than one bean, each with its own origin, process and share
+-- of the mix — which the flat bean_name/origin/process columns can't express.
+--
+-- Shape, when bean_type = 'Blend':
+--   [{"name": "", "origin": "Brazil",    "process": "Natural", "percent": 50},
+--    {"name": "", "origin": "Indonesia", "process": "Washed",  "percent": 50}]
+--
+-- Why jsonb rather than a `brew_beans` table: the app fetches every row and
+-- filters client-side already, so a relational table would add a join, its own
+-- RLS policy and more code without enabling any query we can't already do in
+-- memory. Revisit if this ever needs server-side aggregation across origins.
+--
+-- Null for single-origin brews, which keep using bean_name / origin / process.
+-- Roast level and roast date stay on the brew either way — a blend is roasted
+-- as one bag.
+
+alter table brews add column if not exists blend_components jsonb;

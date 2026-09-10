@@ -19,6 +19,11 @@ import {
 import {
   splitSeconds,
   joinSeconds,
+  componentsFromBrew,
+  componentsToPayload,
+  percentTotal,
+  BLANK_COMPONENT,
+  MAX_BLEND_COMPONENTS,
   fileExtension,
   num,
   dateOrNull,
@@ -37,6 +42,7 @@ const DEFAULTS = {
   grindUnit: "",
   beanName: "",
   beanType: "",
+  components: [{ ...BLANK_COMPONENT }, { ...BLANK_COMPONENT }],
   origin: "",
   process: "Washed",
   roast: "Medium",
@@ -79,6 +85,7 @@ function formStateFromBrew(brew) {
     grindUnit: brew.grind_unit ?? "",
     beanName: brew.bean_name ?? "",
     beanType: brew.bean_type ?? "",
+    components: componentsFromBrew(brew),
     origin: brew.origin ?? "",
     process: brew.process ?? DEFAULTS.process,
     roast: brew.roast_level ?? DEFAULTS.roast,
@@ -241,6 +248,7 @@ export default function BrewForm({
   const [grindUnit, setGrindUnit] = useState(init.grindUnit);
   const [beanName, setBeanName] = useState(init.beanName);
   const [beanType, setBeanType] = useState(init.beanType);
+  const [components, setComponents] = useState(init.components);
   const [origin, setOrigin] = useState(init.origin);
   const [process, setProcess] = useState(init.process);
   const [roast, setRoast] = useState(init.roast);
@@ -282,6 +290,24 @@ export default function BrewForm({
     const seen = new Set(mine.map((d) => d.toLowerCase()));
     return [...mine, ...DRINKS.filter((d) => !seen.has(d.toLowerCase()))];
   }, [suggestions.drink]);
+
+  const isBlend = beanType === "Blend";
+  const blendTotal = percentTotal(components);
+  // At least one component actually identified, for the step's done tick.
+  const blendNamed = components.some((c) => c.origin?.trim() || c.name?.trim());
+
+  const updateComponent = (index, key, value) =>
+    setComponents((prev) => prev.map((c, i) => (i === index ? { ...c, [key]: value } : c)));
+
+  const addComponent = () =>
+    setComponents((prev) =>
+      prev.length >= MAX_BLEND_COMPONENTS ? prev : [...prev, { ...BLANK_COMPONENT }],
+    );
+
+  // Two is the floor — a blend of one is a single origin, and the remove
+  // buttons are hidden at that point.
+  const removeComponent = (index) =>
+    setComponents((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== index)));
 
   const isOtherMethod = methodChoice === METHOD_OTHER;
   // What actually gets saved. Falls back to "Other" so picking the chip and
@@ -351,6 +377,7 @@ export default function BrewForm({
     setGrindUnit(s.grindUnit);
     setBeanName(s.beanName);
     setBeanType(s.beanType);
+    setComponents(s.components);
     setOrigin(s.origin);
     setProcess(s.process);
     setRoast(s.roast);
@@ -415,11 +442,15 @@ export default function BrewForm({
         grinder,
         grind_size: num(grindSize),
         grind_unit: grindUnit,
-        bean_name: beanName,
         // null rather than "" so "not recorded" stays distinguishable.
         bean_type: beanType || null,
-        origin,
-        process,
+        // Exactly one representation is stored. A blend clears the flat bean
+        // columns, a single origin clears the components — so the two can never
+        // hold contradictory versions of the same beans.
+        bean_name: isBlend ? null : beanName,
+        origin: isBlend ? null : origin,
+        process: isBlend ? null : process,
+        blend_components: isBlend ? componentsToPayload(components) : null,
         roast_level: roast,
         roast_date: dateOrNull(roastDate),
         milk_brand: milkBrand,
@@ -670,27 +701,12 @@ export default function BrewForm({
         <Divider />
 
         {/* 04 Beans */}
-        <StepLabel n={4} title="Beans" done={!!beanName} />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
-          <Field
-            label="Name / roaster"
-            value={beanName}
-            onChange={setBeanName}
-            placeholder="Tim Wendelboe"
-            suggestions={suggestions.beanName}
-          />
-          <Field
-            label="Origin"
-            value={origin}
-            onChange={setOrigin}
-            placeholder="Ethiopia"
-            suggestions={suggestions.origin}
-          />
-          <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
-        </div>
-        {/* Single origin vs blend. Tapping the active chip clears it, so a bag
-            you're unsure about stays unrecorded rather than being guessed. */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <StepLabel n={4} title="Beans" done={isBlend ? blendNamed : !!beanName} />
+
+        {/* Single origin vs blend leads the section, since it decides which
+            fields follow. Tapping the active chip clears it, so a bag you're
+            unsure about stays unrecorded rather than being guessed. */}
+        <div className="flex flex-wrap gap-2 mb-5">
           {BEAN_TYPES.map((t) => (
             <Chip
               key={t}
@@ -700,10 +716,135 @@ export default function BrewForm({
             />
           ))}
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {PROCESSES.map((p) => (
-            <Chip key={p} label={p} active={process === p} onClick={() => setProcess(p)} />
-          ))}
+
+        {isBlend ? (
+          <>
+            {components.map((c, i) => (
+              <div
+                key={i}
+                className="mb-4 pb-4"
+                style={
+                  i < components.length - 1 ? { borderBottom: `1px dashed ${TOKENS.rule}` } : undefined
+                }
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: 9,
+                      color: TOKENS.inkFaint,
+                      letterSpacing: "0.1em",
+                    }}
+                  >
+                    BEAN {i + 1}
+                  </span>
+                  {components.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removeComponent(i)}
+                      aria-label={`Remove bean ${i + 1}`}
+                      style={{ color: TOKENS.rule }}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                  <Field
+                    label="Origin"
+                    value={c.origin}
+                    onChange={(v) => updateComponent(i, "origin", v)}
+                    placeholder="Brazil"
+                    suggestions={suggestions.origin}
+                  />
+                  <Field
+                    label="Share"
+                    value={c.percent}
+                    onChange={(v) => updateComponent(i, "percent", v)}
+                    placeholder="50"
+                    mono
+                    inputMode="decimal"
+                    suffix="%"
+                  />
+                  <Field
+                    label="Name / roaster"
+                    value={c.name}
+                    onChange={(v) => updateComponent(i, "name", v)}
+                    placeholder="Optional"
+                    suggestions={suggestions.beanName}
+                  />
+                  {/* A datalist rather than chips: process repeats per bean, and
+                      four chip rows per component would swamp the form. */}
+                  <Field
+                    label="Process"
+                    value={c.process}
+                    onChange={(v) => updateComponent(i, "process", v)}
+                    placeholder="Natural"
+                    suggestions={PROCESSES}
+                  />
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center justify-between mb-5">
+              {components.length < MAX_BLEND_COMPONENTS ? (
+                <button
+                  type="button"
+                  onClick={addComponent}
+                  className="text-[10px] uppercase tracking-[0.08em]"
+                  style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
+                >
+                  + Add bean
+                </button>
+              ) : (
+                <span />
+              )}
+              {/* Advisory only — 50/50 approximations are normal and shouldn't
+                  block a save. */}
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  color: blendTotal === 100 ? TOKENS.green : TOKENS.inkFaint,
+                }}
+              >
+                TOTAL {blendTotal}%
+                {blendTotal !== 100 && blendTotal > 0 ? " ✳" : ""}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
+              <Field
+                label="Name / roaster"
+                value={beanName}
+                onChange={setBeanName}
+                placeholder="Tim Wendelboe"
+                suggestions={suggestions.beanName}
+              />
+              <Field
+                label="Origin"
+                value={origin}
+                onChange={setOrigin}
+                placeholder="Ethiopia"
+                suggestions={suggestions.origin}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {PROCESSES.map((p) => (
+                <Chip key={p} label={p} active={process === p} onClick={() => setProcess(p)} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Roast level and date apply to the bag either way — a blend is
+            roasted as one. */}
+        <div className="grid grid-cols-2 gap-x-4 mb-4">
+          <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
         </div>
         <div className="flex flex-wrap gap-2">
           {ROASTS.map((r) => (

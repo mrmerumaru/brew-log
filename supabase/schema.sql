@@ -18,6 +18,8 @@ create table if not exists brews (
   grind_unit    text,           -- clicks, numbers, rotations, microns…
   bean_name     text,
   bean_type     text,           -- Single Origin or Blend
+  -- Blend only: [{name, origin, process, percent}, …]. Null for single origin.
+  blend_components jsonb,
   origin        text,
   process       text,
   roast_level   text,

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
-import { formatBrewTime, ratioOf, daysOffRoast, milkLabel, grindLabel } from "./brew";
+import { formatBrewTime, ratioOf, daysOffRoast, milkLabel, grindLabel, beansLabel } from "./brew";
 import ShareSheet from "./ShareSheet";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
@@ -177,7 +177,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
           >
             {/* Method moves here once a drink is named, so it isn't lost. */}
-            {[brew.drink ? brew.method : null, brew.bean_name, brew.origin]
+            {[brew.drink ? brew.method : null, beansLabel(brew)]
               .filter(Boolean)
               .join(" · ") || "No bean recorded"}
           </p>
@@ -344,7 +344,19 @@ export default function BrewHistory({ refreshKey, onEdit }) {
       if (method && b.method !== method) return false;
       if (minRating > 0 && (b.rating ?? 0) < minRating) return false;
       if (q) {
-        const haystack = [b.drink, b.bean_name, b.origin, b.notes, b.process, b.roast_level, b.milk_brand, b.milk_type, b.bean_type]
+        const haystack = [
+          b.drink,
+          // beansLabel covers names, origins and percentages for a blend as
+          // well as a single origin; component processes need adding by hand.
+          beansLabel(b),
+          ...(Array.isArray(b.blend_components) ? b.blend_components : []).map((c) => c?.process),
+          b.notes,
+          b.process,
+          b.roast_level,
+          b.milk_brand,
+          b.milk_type,
+          b.bean_type,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();

@@ -11,7 +11,7 @@
 // pay for toBlob() when they actually share.
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
-import { formatBrewTime, ratioOf, milkLabel } from "./brew";
+import { formatBrewTime, ratioOf, milkLabel, beansLabel } from "./brew";
 
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
@@ -233,7 +233,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // The drink is the headline. When there is one, the brewing method drops to
   // the secondary line rather than disappearing.
   const headline = brew.drink || brew.method || "Brew";
-  const subtitle = [brew.drink ? brew.method : null, brew.bean_name, brew.origin]
+  const subtitle = [brew.drink ? brew.method : null, beansLabel(brew)]
     .filter(Boolean)
     .join(" · ");
 

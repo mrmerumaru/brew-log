@@ -115,10 +115,25 @@ card, with the method dropping to the secondary line. It's a free-text field
 suggested from `DRINKS` in [src/tokens.js](src/tokens.js) plus whatever you've
 logged before, so it isn't a closed list.
 
-Beans can be marked **Single Origin** or **Blend**. The chips are deselectable
-and the column is nullable with no default, so a bag you're unsure about stays
-unrecorded rather than being guessed at — which also means the brews logged
-before this existed aren't retroactively mislabelled.
+Beans can be marked **Single Origin** or **Blend**, and the choice changes what
+the form asks for. Single origin uses the flat `bean_name` / `origin` /
+`process` columns. A blend uses `blend_components` — a `jsonb` array of up to
+five beans, each with its own name, origin, process and percentage share, which
+reads back as "Brazil 50% + Indonesia 50%" in history and on the card.
+
+Exactly one of the two representations is ever stored: saving a blend nulls the
+flat columns and vice versa, so they can't hold contradictory versions of the
+same beans. `jsonb` rather than a `brew_beans` table because the app already
+fetches every row and filters client-side — a relational table would add a join
+and an RLS policy without enabling any query we can't do in memory.
+
+Percentages are advisory: the form shows a running total and marks anything that
+isn't 100%, but never blocks a save. Roast level and roast date stay on the brew
+for both cases, since a blend is roasted as one bag.
+
+The chips are deselectable and `bean_type` is nullable with no default, so a bag
+you're unsure about stays unrecorded rather than being guessed at — which also
+means brews logged before this existed aren't retroactively mislabelled.
 
 Beans also carry a **roast date**, from which the app derives days-off-roast —
 shown as `OFF ROAST` in history and on the share card. That's measured against
