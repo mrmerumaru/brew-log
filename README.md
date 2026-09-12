@@ -105,11 +105,17 @@ from the top, hands off to the paper panel across an amber hairline, and the
 stats sit in a banded table opened by a dashed rule with hairlines between
 columns.
 
-The photo is a **3:2 landscape** frame (`PHOTO_ASPECT` in
-[src/shareCard.js](src/shareCard.js)), clamped shorter when a card hasn't room
-for it — the 4:5 card ends up wider than 3:2. Whatever paper is left over goes
-symmetrically above and below the content block, so a short photo reads as
-deliberate framing rather than a gap.
+The photo is a **4:5 portrait** frame — `PHOTO_ASPECT` in
+[src/shareCard.js](src/shareCard.js), expressed as height ÷ width, so values
+above 1 are portrait.
+
+The photo gets the height it asks for until the content can't fit beneath it.
+Then spacing compresses (gaps 36px → 16px, the rule-to-content step 56px → 28px)
+and only once that's exhausted does the photo give way. So a tall photo squeezes
+the information rather than colliding with it, and a fully-filled Story card
+lands at about 1.16 rather than the full 1.25. Any paper left over is split
+symmetrically above and below the content, so a short photo reads as deliberate
+framing rather than a gap.
 
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design

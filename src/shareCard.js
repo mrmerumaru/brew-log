@@ -45,12 +45,16 @@ const MAX_CHIP_ROWS = 2;
 const RULE_H = 5;
 const AFTER_RULE = 56;
 
-// Photo height as a fraction of the card width — 2/3 is a 3:2 landscape frame.
-// On the tall 9:16 card this leaves paper spare, so the content block is
-// centred in what remains rather than stranding the gap in one place. On the
-// shorter 4:5 card there isn't room for a full 3:2, and it clamps to whatever
-// fits above the content.
-const PHOTO_ASPECT = 2 / 3;
+// Photo height as a fraction of the card WIDTH, so values above 1 are portrait:
+// 1.25 is a 4:5 portrait frame, 1 is square, 2/3 is 3:2 landscape.
+//
+// The photo gets what it asks for until the content can't fit beneath it. Then
+// spacing compresses — gaps down to MIN_GAP, the rule-to-content step down to
+// MIN_AFTER_RULE — and only once that's exhausted does the photo give way. So a
+// tall photo squeezes the information rather than colliding with it.
+const PHOTO_ASPECT = 1.25;
+const MIN_GAP = 16;
+const MIN_AFTER_RULE = 28;
 
 // Stats sit in a banded table: a dashed rule across the top, then columns
 // separated by hairlines.
@@ -293,25 +297,36 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   if (stats.length) blocks.push(STATS_BAND_H);
   if (chips.height) blocks.push(chips.height);
 
-  const contentH = blocks.reduce((a, b) => a + b, 0) + GAP * (blocks.length - 1);
+  const sumBlocks = blocks.reduce((a, b) => a + b, 0);
+  const gapCount = Math.max(0, blocks.length - 1);
 
   const footerLineY = H - PAD - 56;
   const contentBottom = footerLineY - 56;
+
+  // Resolved below: both depend on how much room the photo leaves.
+  let gap = GAP;
+  let contentH = sumBlocks + gap * gapCount;
   let y = contentBottom - contentH;
 
   // ---- Photo -------------------------------------------------------------
   let photoMetrics = null;
   if (img) {
-    // Full bleed from the top edge down to the amber rule, at the chosen
-    // aspect — but never taller than the space above the content allows.
-    const maxPhotoH = Math.max(0, y - AFTER_RULE - RULE_H);
+    // The tallest photo that still leaves room for the content at its most
+    // compressed. This is the floor that keeps text off the footer.
+    const floorContentH = sumBlocks + MIN_GAP * gapCount;
+    const maxPhotoH = Math.max(0, contentBottom - floorContentH - MIN_AFTER_RULE - RULE_H);
     const photoH = Math.min(W * PHOTO_ASPECT, maxPhotoH);
 
-    // Centre the content in the paper left between the rule and the footer, so
-    // a shorter photo reads as deliberate framing rather than a gap.
-    const regionTop = photoH + RULE_H + AFTER_RULE;
-    const regionBottom = contentBottom;
-    y = regionTop + Math.max(0, (regionBottom - regionTop - contentH) / 2);
+    // Hand the leftover paper out in priority order: the step below the rule
+    // first, then the gaps between blocks, then centre whatever still remains.
+    const spare = contentBottom - photoH - RULE_H - floorContentH;
+    const afterRule = Math.min(AFTER_RULE, spare);
+    const gapSlack = spare - afterRule;
+    gap = gapCount ? Math.min(GAP, MIN_GAP + gapSlack / gapCount) : GAP;
+    contentH = sumBlocks + gap * gapCount;
+
+    const regionTop = photoH + RULE_H + afterRule;
+    y = regionTop + Math.max(0, (contentBottom - regionTop - contentH) / 2);
 
     ctx.save();
     ctx.beginPath();
@@ -338,14 +353,14 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // Optically centred against the 64px headline.
   drawRating(ctx, W - PAD - RATING_W, y + 6, brew.rating ?? 0);
 
-  y += METHOD_H + GAP;
+  y += METHOD_H + gap;
 
   // ---- Beans -------------------------------------------------------------
   if (madeLine) {
     ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(truncate(ctx, madeLine, inner), PAD, y);
-    y += LINE_H + GAP;
+    y += LINE_H + gap;
   }
 
   // ---- Beans -------------------------------------------------------------
@@ -353,7 +368,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.ink;
     ctx.fillText(truncate(ctx, beanLine, inner), PAD, y);
-    y += LINE_H + GAP;
+    y += LINE_H + gap;
   }
 
   // ---- Milk --------------------------------------------------------------
@@ -361,7 +376,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(truncate(ctx, milk, inner), PAD, y);
-    y += LINE_H + GAP;
+    y += LINE_H + gap;
   }
 
   // ---- Stats -------------------------------------------------------------
@@ -407,7 +422,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
       ctx.fillText(truncate(ctx, String(value), colW - 36), textX, bandTop + 40);
     });
 
-    y += STATS_BAND_H + GAP;
+    y += STATS_BAND_H + gap;
   }
 
   // ---- Flavour tags ------------------------------------------------------
