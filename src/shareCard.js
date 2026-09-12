@@ -45,6 +45,13 @@ const MAX_CHIP_ROWS = 2;
 const RULE_H = 5;
 const AFTER_RULE = 56;
 
+// Photo height as a fraction of the card width — 2/3 is a 3:2 landscape frame.
+// On the tall 9:16 card this leaves paper spare, so the content block is
+// centred in what remains rather than stranding the gap in one place. On the
+// shorter 4:5 card there isn't room for a full 3:2, and it clamps to whatever
+// fits above the content.
+const PHOTO_ASPECT = 2 / 3;
+
 // Stats sit in a banded table: a dashed rule across the top, then columns
 // separated by hairlines.
 const STATS_BAND_H = 104;
@@ -260,7 +267,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
     .join(", ");
   // Single origin vs blend rides on the beans line rather than taking a block
   // of its own — it qualifies those beans, so it belongs with them.
-  const beanLine = [originLabel(brew), brew.bean_type?.trim()].filter(Boolean).join(" · ");
+  const beanLine = [brew.bean_type?.trim(), originLabel(brew)].filter(Boolean).join(" · ");
 
   const milk = milkLabel(brew);
 
@@ -295,8 +302,16 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // ---- Photo -------------------------------------------------------------
   let photoMetrics = null;
   if (img) {
-    // Full bleed from the top edge down to the amber rule.
-    const photoH = Math.max(0, y - AFTER_RULE - RULE_H);
+    // Full bleed from the top edge down to the amber rule, at the chosen
+    // aspect — but never taller than the space above the content allows.
+    const maxPhotoH = Math.max(0, y - AFTER_RULE - RULE_H);
+    const photoH = Math.min(W * PHOTO_ASPECT, maxPhotoH);
+
+    // Centre the content in the paper left between the rule and the footer, so
+    // a shorter photo reads as deliberate framing rather than a gap.
+    const regionTop = photoH + RULE_H + AFTER_RULE;
+    const regionBottom = contentBottom;
+    y = regionTop + Math.max(0, (regionBottom - regionTop - contentH) / 2);
 
     ctx.save();
     ctx.beginPath();

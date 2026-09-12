@@ -103,10 +103,13 @@ crowded the card without meaning much to anyone else.
 Visually the card is a specimen sheet: the photo **bleeds to all four edges**
 from the top, hands off to the paper panel across an amber hairline, and the
 stats sit in a banded table opened by a dashed rule with hairlines between
-columns. The full bleed also removed a layout flaw — the photo used to be capped
-and centred in whatever space was left, which could strand empty paper above it.
-Now it runs from the top edge to wherever the content begins, so there's no
-leftover space to centre in.
+columns.
+
+The photo is a **3:2 landscape** frame (`PHOTO_ASPECT` in
+[src/shareCard.js](src/shareCard.js)), clamped shorter when a card hasn't room
+for it — the 4:5 card ends up wider than 3:2. Whatever paper is left over goes
+symmetrically above and below the content block, so a short photo reads as
+deliberate framing rather than a gap.
 
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design
@@ -138,8 +141,8 @@ relational table would add a join and an RLS policy without enabling any query
 we can't do in memory.
 
 The share card puts this on two lines under the drink: **"Espresso, Elephant
-Grounds"** (method, roastery) then **"Brazil (50%), Aceh Gayo (50%) · Blend"** —
-or **"Ethiopia · Single Origin"**. Each component shows its origin, falling back to
+Grounds"** (method, roastery) then **"Blend · Brazil (50%), Aceh Gayo (50%)"** —
+or **"Single Origin · Ethiopia"**. Each component shows its origin, falling back to
 its lot name only when no origin was recorded.
 
 Percentages are advisory: the form shows a running total and marks anything that
