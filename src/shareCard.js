@@ -50,6 +50,15 @@ const AFTER_RULE = 56;
 const STATS_BAND_H = 104;
 const STATS_TOP_PAD = 26;
 
+// One typeface and size for the method/roastery, beans and milk lines, so they
+// read as a single block rather than three unrelated treatments.
+const LINE_FONT = 32;
+
+// The stat label is the larger, bolder half; the reading sits under it a little
+// smaller and quieter.
+const STAT_LABEL_FONT = 30;
+const STAT_VALUE_FONT = 26;
+
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 const CUP_SIZE = 40;
@@ -249,7 +258,9 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   const madeLine = [brew.drink ? brew.method : null, brew.bean_name?.trim()]
     .filter(Boolean)
     .join(", ");
-  const beanLine = originLabel(brew);
+  // Single origin vs blend rides on the beans line rather than taking a block
+  // of its own — it qualifies those beans, so it belongs with them.
+  const beanLine = [originLabel(brew), brew.bean_type?.trim()].filter(Boolean).join(" · ");
 
   const milk = milkLabel(brew);
 
@@ -267,12 +278,11 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   const METHOD_H = 76;
   const LINE_H = 46;
-  const MILK_H = 40;
 
   const blocks = [METHOD_H];
   if (madeLine) blocks.push(LINE_H);
   if (beanLine) blocks.push(LINE_H);
-  if (milk) blocks.push(MILK_H);
+  if (milk) blocks.push(LINE_H);
   if (stats.length) blocks.push(STATS_BAND_H);
   if (chips.height) blocks.push(chips.height);
 
@@ -317,7 +327,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   // ---- Beans -------------------------------------------------------------
   if (madeLine) {
-    ctx.font = `400 34px ${SERIF}`;
+    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(truncate(ctx, madeLine, inner), PAD, y);
     y += LINE_H + GAP;
@@ -325,7 +335,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   // ---- Beans -------------------------------------------------------------
   if (beanLine) {
-    ctx.font = `400 30px ${SERIF}`;
+    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.ink;
     ctx.fillText(truncate(ctx, beanLine, inner), PAD, y);
     y += LINE_H + GAP;
@@ -333,10 +343,10 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   // ---- Milk --------------------------------------------------------------
   if (milk) {
-    ctx.font = `500 26px ${MONO}`;
+    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(truncate(ctx, milk, inner), PAD, y);
-    y += MILK_H + GAP;
+    y += LINE_H + GAP;
   }
 
   // ---- Stats -------------------------------------------------------------
@@ -370,15 +380,16 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
         ctx.stroke();
       }
 
-      ctx.font = `500 20px ${MONO}`;
-      ctx.fillStyle = TOKENS.inkFaint;
+      // The label leads and the reading follows it, quieter and smaller.
+      ctx.font = `700 ${STAT_LABEL_FONT}px ${MONO}`;
+      ctx.fillStyle = TOKENS.ink;
       // Labels get truncated too, so a longer one added later can't silently
       // overlap its neighbour.
       ctx.fillText(truncate(ctx, label, colW - 36), textX, bandTop);
 
-      ctx.font = `600 36px ${MONO}`;
-      ctx.fillStyle = TOKENS.ink;
-      ctx.fillText(truncate(ctx, String(value), colW - 36), textX, bandTop + 32);
+      ctx.font = `500 ${STAT_VALUE_FONT}px ${MONO}`;
+      ctx.fillStyle = TOKENS.inkFaint;
+      ctx.fillText(truncate(ctx, String(value), colW - 36), textX, bandTop + 40);
     });
 
     y += STATS_BAND_H + GAP;
