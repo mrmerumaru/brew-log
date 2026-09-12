@@ -43,7 +43,10 @@ const MAX_CHIP_ROWS = 2;
 // to wherever the content begins, so there's never leftover space to centre it
 // in — which is what used to leave a void above it.
 const RULE_H = 5;
-const AFTER_RULE = 56;
+// The step from the amber rule to the headline separates two zones — image and
+// text — so it stays the largest vertical interval on the card, comfortably
+// bigger than the gaps between content blocks even when everything compresses.
+const AFTER_RULE = 88;
 
 // Photo height as a fraction of the card WIDTH, so values above 1 are portrait:
 // 1.25 is a 4:5 portrait frame, 1 is square, 2/3 is 3:2 landscape.
@@ -54,7 +57,7 @@ const AFTER_RULE = 56;
 // tall photo squeezes the information rather than colliding with it.
 const PHOTO_ASPECT = 1.25;
 const MIN_GAP = 16;
-const MIN_AFTER_RULE = 28;
+const MIN_AFTER_RULE = 56;
 
 // Stats sit in a banded table: a dashed rule across the top, then columns
 // separated by hairlines.
