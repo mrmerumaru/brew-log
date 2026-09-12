@@ -100,6 +100,14 @@ Grind size and days-off-roast are deliberately left off it — still recorded on
 every brew and shown in history, but they're personal repeatability data that
 crowded the card without meaning much to anyone else.
 
+Visually the card is a specimen sheet: the photo **bleeds to all four edges**
+from the top, hands off to the paper panel across an amber hairline, and the
+stats sit in a banded table opened by a dashed rule with hairlines between
+columns. The full bleed also removed a layout flaw — the photo used to be capped
+and centred in whatever space was left, which could strand empty paper above it.
+Now it runs from the top edge to wherever the content begins, so there's no
+leftover space to centre in.
+
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design
 suggested — brew photos come from cross-origin signed URLs, which taint a canvas

@@ -37,8 +37,18 @@ const GAP = 36;
 const CHIP_H = 54;
 const CHIP_GAP = 12;
 const MAX_CHIP_ROWS = 2;
-// Cap so a tall card doesn't crop landscape photos to a narrow slot.
-const MAX_PHOTO_RATIO = 1.25;
+
+// The photo bleeds to the card edges and hands off to the paper panel across an
+// amber hairline. No cap on its height: it starts at the very top edge and runs
+// to wherever the content begins, so there's never leftover space to centre it
+// in — which is what used to leave a void above it.
+const RULE_H = 5;
+const AFTER_RULE = 56;
+
+// Stats sit in a banded table: a dashed rule across the top, then columns
+// separated by hairlines.
+const STATS_BAND_H = 104;
+const STATS_TOP_PAD = 26;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -258,13 +268,12 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   const METHOD_H = 76;
   const LINE_H = 46;
   const MILK_H = 40;
-  const STATS_H = 80;
 
   const blocks = [METHOD_H];
   if (madeLine) blocks.push(LINE_H);
   if (beanLine) blocks.push(LINE_H);
   if (milk) blocks.push(MILK_H);
-  if (stats.length) blocks.push(STATS_H);
+  if (stats.length) blocks.push(STATS_BAND_H);
   if (chips.height) blocks.push(chips.height);
 
   const contentH = blocks.reduce((a, b) => a + b, 0) + GAP * (blocks.length - 1);
@@ -276,20 +285,19 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // ---- Photo -------------------------------------------------------------
   let photoMetrics = null;
   if (img) {
-    const available = y - PAD - 56;
-    const photoH = Math.min(available, inner * MAX_PHOTO_RATIO);
-    const photoY = PAD + Math.max(0, (available - photoH) / 2);
+    // Full bleed from the top edge down to the amber rule.
+    const photoH = Math.max(0, y - AFTER_RULE - RULE_H);
 
     ctx.save();
-    roundRectPath(ctx, PAD, photoY, inner, photoH, 8);
+    ctx.beginPath();
+    ctx.rect(0, 0, W, photoH);
     ctx.clip();
-    photoMetrics = drawPhoto(ctx, img, PAD, photoY, inner, photoH, transform);
+    photoMetrics = drawPhoto(ctx, img, 0, 0, W, photoH, transform);
     ctx.restore();
 
-    ctx.strokeStyle = TOKENS.rule;
-    ctx.lineWidth = 2;
-    roundRectPath(ctx, PAD, photoY, inner, photoH, 8);
-    ctx.stroke();
+    // The accent that hands off from photo to paper.
+    ctx.fillStyle = TOKENS.amber;
+    ctx.fillRect(0, photoH, W, RULE_H);
   } else {
     // Nothing to fill the space, so centre the text between top and footer
     // rather than stranding it at the bottom.
@@ -297,9 +305,10 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   }
 
   // ---- Method + rating ---------------------------------------------------
+  // Uppercase gives the headline poster weight against the serif lines below.
   ctx.font = `700 64px ${SANS}`;
   ctx.fillStyle = TOKENS.ink;
-  ctx.fillText(truncate(ctx, headline, inner - RATING_W - 32), PAD, y);
+  ctx.fillText(truncate(ctx, headline.toUpperCase(), inner - RATING_W - 32), PAD, y);
 
   // Optically centred against the 64px headline.
   drawRating(ctx, W - PAD - RATING_W, y + 6, brew.rating ?? 0);
@@ -332,21 +341,47 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
 
   // ---- Stats -------------------------------------------------------------
   if (stats.length) {
+    // Dashed rule opens the band, echoing the dividers in the app's form.
+    ctx.strokeStyle = TOKENS.rule;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const bandTop = y + STATS_TOP_PAD;
     // Even columns across the full width, so four stats don't bunch left.
     const colW = inner / stats.length;
+
     stats.forEach(([label, value], i) => {
-      const x = PAD + colW * i;
+      const colX = PAD + colW * i;
+      // Column 0's left edge is the page margin, so only the inner boundaries
+      // get a hairline — and only those columns need the matching text inset.
+      const textX = colX + (i === 0 ? 0 : 20);
+
+      if (i > 0) {
+        ctx.strokeStyle = TOKENS.rule;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(colX, bandTop - 8);
+        ctx.lineTo(colX, bandTop + 72);
+        ctx.stroke();
+      }
+
       ctx.font = `500 20px ${MONO}`;
       ctx.fillStyle = TOKENS.inkFaint;
-      // Labels get truncated too: five columns leave ~187px each, and a longer
-      // label added later shouldn't silently overlap its neighbour.
-      ctx.fillText(truncate(ctx, label, colW - 16), x, y);
+      // Labels get truncated too, so a longer one added later can't silently
+      // overlap its neighbour.
+      ctx.fillText(truncate(ctx, label, colW - 36), textX, bandTop);
 
       ctx.font = `600 36px ${MONO}`;
       ctx.fillStyle = TOKENS.ink;
-      ctx.fillText(truncate(ctx, String(value), colW - 16), x, y + 32);
+      ctx.fillText(truncate(ctx, String(value), colW - 36), textX, bandTop + 32);
     });
-    y += STATS_H + GAP;
+
+    y += STATS_BAND_H + GAP;
   }
 
   // ---- Flavour tags ------------------------------------------------------
