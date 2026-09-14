@@ -9,3 +9,19 @@ body,
 body {
   margin: 0;
 }
+
+/* Installed to a home screen there's no browser chrome, so the app paints
+   behind the notch and the home indicator. These keep it clear of both, and
+   collapse to zero in a normal browser tab. */
+#root {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  box-sizing: border-box;
+}
+
+/* The page background should reach the edges even though #root is inset. */
+body {
+  background: #f3f1ec;
+}
