@@ -100,7 +100,14 @@ Grind size and days-off-roast are deliberately left off it — still recorded on
 every brew and shown in history, but they're personal repeatability data that
 crowded the card without meaning much to anyone else.
 
-Visually the card is a specimen sheet: the photo **bleeds to all four edges**
+The two ratios use **two different layouts**, because the geometry forces it. A
+portrait photo has to be taller than the 1080px card width; the 1920px-tall
+Story card has room for that above its text, but the 1350px-tall Post card does
+not — even carrying nothing but the drink name, its tallest fitting photo is
+1029px, still landscape. So the Post card puts the text *over* the photo on a
+gradient scrim, while the Story card keeps the specimen layout below it.
+
+Visually the Story card is a specimen sheet: the photo **bleeds to all four edges**
 from the top, hands off to the paper panel across an amber hairline, and the
 stats sit in a banded table opened by a dashed rule with hairlines between
 columns.

@@ -16,8 +16,25 @@ import { formatBrewTime, ratioOf, milkLabel, originLabel } from "./brew";
 // The layout is elastic — the photo absorbs whatever space the text doesn't
 // need — so a new aspect is just a new entry here.
 export const CARD_RATIOS = {
-  "9:16": { label: "Story", note: "Instagram Stories, Reels, TikTok", w: 1080, h: 1920 },
-  "4:5": { label: "Post", note: "Instagram feed, X, Threads", w: 1080, h: 1350 },
+  // Two layouts, because the geometry forces it. A portrait photo has to be
+  // taller than the 1080px card width, which the 1920px-tall Story card can
+  // accommodate above the text but the 1350px-tall Post card cannot — even
+  // carrying nothing but the drink name, its tallest fitting photo is 1029px,
+  // still landscape. So the Post card puts the text over the photo instead.
+  "9:16": {
+    label: "Story",
+    note: "Instagram Stories, Reels, TikTok",
+    w: 1080,
+    h: 1920,
+    layout: "specimen",
+  },
+  "4:5": {
+    label: "Post",
+    note: "Instagram feed, X, Threads",
+    w: 1080,
+    h: 1350,
+    layout: "overlay",
+  },
 };
 
 export const DEFAULT_RATIO = "9:16";
@@ -248,8 +265,58 @@ export async function decodePhoto(blob) {
  * @returns {{ photo: null | { maxOffsetX: number, maxOffsetY: number } }}
  *   travel available for panning, in card pixels
  */
+/** Everything both layouts render, derived once. */
+function cardContent(ctx, brew, inner) {
+  return {
+    // The drink is the headline. When there is one, the brewing method drops to
+    // the secondary line rather than disappearing.
+    headline: brew.drink || brew.method || "Brew",
+    // How it was made and by whom, then the beans themselves.
+    // "Espresso, Elephant Grounds" / "Blend · Brazil (50%), Aceh Gayo (50%)".
+    // Method is omitted when it's already the headline (no drink recorded).
+    madeLine: [brew.drink ? brew.method : null, brew.bean_name?.trim()]
+      .filter(Boolean)
+      .join(", "),
+    beanLine: [brew.bean_type?.trim(), originLabel(brew)].filter(Boolean).join(" · "),
+    milk: milkLabel(brew),
+    // Grind size and days-off-roast are deliberately absent: they're personal
+    // repeatability data, still recorded on the brew and shown in history, but
+    // they crowded the card without meaning much to anyone else.
+    stats: [
+      ["RATIO", ratioOf(brew)],
+      ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
+      ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
+      ["TIME", formatBrewTime(brew.brew_time_s)],
+    ].filter(([, v]) => v),
+    chips: layoutChips(ctx, brew.flavor_tags ?? [], inner),
+  };
+}
+
+function formattedDate(brew) {
+  if (!brew.created_at) return null;
+  return new Date(brew.created_at).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Paint one brew's card onto an existing context. Synchronous, so it's safe to
+ * call at pointer-move rate.
+ *
+ * @returns {{ photo: null | { maxOffsetX: number, maxOffsetY: number } }}
+ *   travel available for panning, in card pixels
+ */
 export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform = DEFAULT_TRANSFORM) {
-  const { w: W, h: H } = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
+  const spec = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
+  return spec.layout === "overlay"
+    ? drawOverlay(ctx, brew, img, spec, transform)
+    : drawSpecimen(ctx, brew, img, spec, transform);
+}
+
+function drawSpecimen(ctx, brew, img, spec, transform) {
+  const { w: W, h: H } = spec;
 
   ctx.save();
   ctx.fillStyle = TOKENS.paper;
@@ -263,32 +330,7 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   // the photo takes whatever is left. Nothing can overlap because no block is
   // positioned until every height is known.
 
-  // The drink is the headline. When there is one, the brewing method drops to
-  // the secondary line rather than disappearing.
-  const headline = brew.drink || brew.method || "Brew";
-  // Two lines under the headline: how it was made and by whom, then the beans
-  // themselves. "Espresso, Elephant Grounds" / "Brazil (50%), Aceh Gayo (50%)".
-  // Method is omitted when it's already the headline (no drink recorded).
-  const madeLine = [brew.drink ? brew.method : null, brew.bean_name?.trim()]
-    .filter(Boolean)
-    .join(", ");
-  // Single origin vs blend rides on the beans line rather than taking a block
-  // of its own — it qualifies those beans, so it belongs with them.
-  const beanLine = [brew.bean_type?.trim(), originLabel(brew)].filter(Boolean).join(" · ");
-
-  const milk = milkLabel(brew);
-
-  // Grind size and days-off-roast are deliberately absent: they're personal
-  // repeatability data, still recorded on the brew and shown in history, but
-  // they crowded the card without meaning much to anyone else.
-  const stats = [
-    ["RATIO", ratioOf(brew)],
-    ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
-    ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
-    ["TIME", formatBrewTime(brew.brew_time_s)],
-  ].filter(([, v]) => v);
-
-  const chips = layoutChips(ctx, brew.flavor_tags ?? [], inner);
+  const { headline, madeLine, beanLine, milk, stats, chips } = cardContent(ctx, brew, inner);
 
   const METHOD_H = 76;
   const LINE_H = 46;
@@ -465,15 +507,135 @@ export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform =
   ctx.fillStyle = TOKENS.green;
   ctx.fillText("BREW LOG", PAD + MARK_SIZE + 10, footerTextY);
 
-  if (brew.created_at) {
-    const date = new Date(brew.created_at).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const date = formattedDate(brew);
+  if (date) {
     ctx.font = `400 22px ${MONO}`;
     ctx.fillStyle = TOKENS.inkFaint;
     ctx.fillText(date, W - PAD - ctx.measureText(date).width, footerTextY);
+  }
+
+  ctx.restore();
+  return { photo: photoMetrics };
+}
+
+// --- Overlay layout (the Post card) ---------------------------------------
+// Photo fills the card; the text sits over a gradient scrim at the bottom in
+// light type. This is the only way to show a portrait photo at 4:5 — see the
+// note on CARD_RATIOS.
+
+// Light equivalents of the paper palette, for type over a photo.
+const OVER_BRIGHT = TOKENS.card;
+const OVER_MUTED = TOKENS.rule;
+
+const OVER_LINE_H = 44;
+const OVER_STATS_H = 40;
+const OVER_GAP = 26;
+const OVER_FOOTER_H = 34;
+
+function drawOverlay(ctx, brew, img, spec, transform) {
+  const { w: W, h: H } = spec;
+
+  ctx.save();
+  ctx.fillStyle = TOKENS.ink;
+  ctx.fillRect(0, 0, W, H);
+
+  const inner = W - PAD * 2;
+  ctx.textBaseline = "top";
+
+  const { headline, madeLine, beanLine, milk, stats } = cardContent(ctx, brew, inner);
+  // Flavour chips are dropped here: pills over a photo read as clutter, and the
+  // scrim would have to grow to cover two more rows.
+
+  // ---- Photo, full card --------------------------------------------------
+  let photoMetrics = null;
+  if (img) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.clip();
+    photoMetrics = drawPhoto(ctx, img, 0, 0, W, H, transform);
+    ctx.restore();
+  }
+
+  // ---- Measure the text stack, bottom-anchored ---------------------------
+  const blocks = [76]; // headline + rating
+  if (madeLine) blocks.push(OVER_LINE_H);
+  if (beanLine) blocks.push(OVER_LINE_H);
+  if (milk) blocks.push(OVER_LINE_H);
+  if (stats.length) blocks.push(OVER_STATS_H);
+
+  const contentH = blocks.reduce((a, b) => a + b, 0) + OVER_GAP * (blocks.length - 1);
+  const footerTop = H - PAD - OVER_FOOTER_H;
+  let y = footerTop - 44 - contentH;
+
+  // ---- Scrim -------------------------------------------------------------
+  // Fades in well above the headline so the transition is invisible; the type
+  // needs a near-solid base by the bottom edge to stay legible over any photo.
+  const scrimTop = Math.max(0, y - 180);
+  const grad = ctx.createLinearGradient(0, scrimTop, 0, H);
+  grad.addColorStop(0, "rgba(32, 29, 26, 0)");
+  grad.addColorStop(0.45, "rgba(32, 29, 26, 0.62)");
+  grad.addColorStop(1, "rgba(32, 29, 26, 0.94)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, scrimTop, W, H - scrimTop);
+
+  // ---- Headline + rating -------------------------------------------------
+  ctx.font = `700 60px ${SANS}`;
+  ctx.fillStyle = OVER_BRIGHT;
+  ctx.fillText(truncate(ctx, headline.toUpperCase(), inner - RATING_W - 32), PAD, y);
+  drawRating(ctx, W - PAD - RATING_W, y + 4, brew.rating ?? 0);
+  y += 76 + OVER_GAP;
+
+  // ---- Text lines --------------------------------------------------------
+  for (const [text, color] of [
+    [madeLine, OVER_MUTED],
+    [beanLine, OVER_BRIGHT],
+    [milk, OVER_MUTED],
+  ]) {
+    if (!text) continue;
+    ctx.font = `400 30px ${SERIF}`;
+    ctx.fillStyle = color;
+    ctx.fillText(truncate(ctx, text, inner), PAD, y);
+    y += OVER_LINE_H + OVER_GAP;
+  }
+
+  // ---- Stats, one line ---------------------------------------------------
+  // A bordered table would fight the photo, so the readings run inline with
+  // their labels muted and the numbers bright.
+  if (stats.length) {
+    let x = PAD;
+    stats.forEach(([label, value], i) => {
+      if (i > 0) {
+        ctx.font = `400 24px ${MONO}`;
+        ctx.fillStyle = OVER_MUTED;
+        ctx.fillText("  ·  ", x, y + 2);
+        x += ctx.measureText("  ·  ").width;
+      }
+      ctx.font = `500 22px ${MONO}`;
+      ctx.fillStyle = OVER_MUTED;
+      ctx.fillText(label, x, y + 4);
+      x += ctx.measureText(label).width + 8;
+
+      ctx.font = `600 26px ${MONO}`;
+      ctx.fillStyle = OVER_BRIGHT;
+      ctx.fillText(String(value), x, y);
+      x += ctx.measureText(String(value)).width;
+    });
+  }
+
+  // ---- Footer ------------------------------------------------------------
+  const MARK_SIZE = 24;
+  drawCup(ctx, PAD, footerTop - 2, MARK_SIZE, true, OVER_BRIGHT);
+
+  ctx.font = `700 21px ${SANS}`;
+  ctx.fillStyle = OVER_BRIGHT;
+  ctx.fillText("BREW LOG", PAD + MARK_SIZE + 10, footerTop);
+
+  const date = formattedDate(brew);
+  if (date) {
+    ctx.font = `400 21px ${MONO}`;
+    ctx.fillStyle = OVER_MUTED;
+    ctx.fillText(date, W - PAD - ctx.measureText(date).width, footerTop);
   }
 
   ctx.restore();
