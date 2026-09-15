@@ -2,7 +2,15 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
-import { formatBrewTime, ratioOf, daysOffRoast, milkLabel, grindLabel, beansLabel } from "./brew";
+import {
+  formatBrewTime,
+  ratioOf,
+  daysOffRoast,
+  milkLabel,
+  grindLabel,
+  beansLabel,
+  poursLabel,
+} from "./brew";
 import ShareSheet from "./ShareSheet";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
@@ -119,6 +127,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
   const rest = daysOffRoast(brew.roast_date, brew.created_at);
   const milk = milkLabel(brew);
   const grind = grindLabel(brew);
+  const pours = poursLabel(brew);
   // Deleting is irreversible, so the trash icon arms a confirm rather than
   // firing straight away.
   const [confirming, setConfirming] = useState(false);
@@ -201,6 +210,15 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             <Meta label="GRIND" value={grind} />
             <Meta label="OFF ROAST" value={rest == null ? null : `${rest}d`} />
           </div>
+
+          {/* The pour schedule is the whole point of recording it — a pourover
+              can't be reproduced from the totals alone. */}
+          {pours && (
+            <p className="text-[12px] mt-2" style={{ fontFamily: MONO, color: TOKENS.inkFaint }}>
+              <span style={{ letterSpacing: "0.1em", fontSize: 9 }}>POURS </span>
+              {pours}
+            </p>
+          )}
 
           {brew.flavor_tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">

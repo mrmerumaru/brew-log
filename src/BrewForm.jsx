@@ -20,6 +20,12 @@ import {
   splitSeconds,
   joinSeconds,
   componentsFromBrew,
+  poursFromBrew,
+  poursToPayload,
+  pourTotals,
+  pourTotal,
+  BLANK_POUR,
+  MAX_POURS,
   componentsToPayload,
   percentTotal,
   BLANK_COMPONENT,
@@ -54,6 +60,7 @@ const DEFAULTS = {
   temp: "94",
   timeMin: "2",
   timeSec: "45",
+  pours: [{ ...BLANK_POUR }],
   flavors: ["Fruity"],
   rating: 4,
   notes: "",
@@ -96,6 +103,7 @@ function formStateFromBrew(brew) {
     water: brew.water_g == null ? "" : String(brew.water_g),
     temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
     ...splitSeconds(brew.brew_time_s),
+    pours: poursFromBrew(brew),
     flavors: brew.flavor_tags ?? [],
     rating: brew.rating ?? 0,
     notes: brew.notes ?? "",
@@ -260,6 +268,7 @@ export default function BrewForm({
   const [temp, setTemp] = useState(init.temp);
   const [timeMin, setTimeMin] = useState(init.timeMin);
   const [timeSec, setTimeSec] = useState(init.timeSec);
+  const [pours, setPours] = useState(init.pours);
   const [flavors, setFlavors] = useState(init.flavors);
   const [rating, setRating] = useState(init.rating);
   const [notes, setNotes] = useState(init.notes);
@@ -308,6 +317,21 @@ export default function BrewForm({
   // buttons are hidden at that point.
   const removeComponent = (index) =>
     setComponents((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== index)));
+
+  // The pour schedule is a pourover concept; other methods don't show it.
+  const isPourover = method === "Pourover";
+  const pourRunningTotals = pourTotals(pours);
+  const poursWater = pourTotal(pours);
+
+  const updatePour = (index, key, value) =>
+    setPours((prev) => prev.map((p, i) => (i === index ? { ...p, [key]: value } : p)));
+
+  const addPour = () =>
+    setPours((prev) => (prev.length >= MAX_POURS ? prev : [...prev, { ...BLANK_POUR }]));
+
+  // Pour 1 can't be removed — a pourover has at least one pour.
+  const removePour = (index) =>
+    setPours((prev) => (index === 0 ? prev : prev.filter((_, i) => i !== index)));
 
   const isOtherMethod = methodChoice === METHOD_OTHER;
   // What actually gets saved. Falls back to "Other" so picking the chip and
@@ -389,6 +413,7 @@ export default function BrewForm({
     setTemp(s.temp);
     setTimeMin(s.timeMin);
     setTimeSec(s.timeSec);
+    setPours(s.pours);
     setFlavors(s.flavors);
     setRating(s.rating);
     setNotes(s.notes);
@@ -460,6 +485,8 @@ export default function BrewForm({
         water_g: num(water),
         water_temp_c: num(temp),
         brew_time_s: joinSeconds(timeMin, timeSec),
+        // Only pourover has a schedule; every other method stores null.
+        pours: isPourover ? poursToPayload(pours) : null,
         flavor_tags: flavors,
         rating,
         notes,
@@ -939,6 +966,125 @@ export default function BrewForm({
             suggestions={grindUnitSuggestions}
           />
         </div>
+
+        {/* Pour schedule — pourover only. A pourover is several pours, and the
+            single Water/Time pair above describes the brew as a whole. */}
+        {isPourover && (
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-1">
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 10,
+                  color: TOKENS.inkFaint,
+                  letterSpacing: "0.1em",
+                }}
+              >
+                POURS
+              </span>
+              {poursWater > 0 && (
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                    // Advisory only: the pours should add up to the water above,
+                    // but a rough log is better than a blocked save.
+                    color: num(water) === poursWater ? TOKENS.green : TOKENS.inkFaint,
+                  }}
+                >
+                  {poursWater}g TOTAL
+                  {num(water) != null && num(water) !== poursWater ? " \u2733" : ""}
+                </span>
+              )}
+            </div>
+
+            {/* Pour 1 is expected but not enforced — the save goes through
+                either way, since a partial log beats an abandoned one. */}
+            {num(pours[0]?.water) == null && (
+              <p className="text-[12px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.amber }}>
+                Pour 1 has no water recorded — this brew won't be reproducible.
+              </p>
+            )}
+
+            {pours.map((p, i) => (
+              <div
+                key={i}
+                className="pt-3 mt-3"
+                style={{ borderTop: `1px dashed ${TOKENS.rule}` }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span
+                    style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                  >
+                    POUR {i + 1}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span
+                      style={{ fontFamily: MONO, fontSize: 11, color: TOKENS.ink }}
+                    >
+                      {pourRunningTotals[i] > 0 ? `${pourRunningTotals[i]}g` : ""}
+                    </span>
+                    {/* Pour 1 has no remove button: a pourover has at least one. */}
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removePour(i)}
+                        aria-label={`Remove pour ${i + 1}`}
+                        style={{ color: TOKENS.rule }}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4">
+                  <div className="grid grid-cols-2 gap-x-2">
+                    <Field
+                      label="At"
+                      value={p.timeMin}
+                      onChange={(v) => updatePour(i, "timeMin", v)}
+                      mono
+                      suffix="min"
+                      inputMode="numeric"
+                      placeholder="0"
+                    />
+                    <Field
+                      label={" "}
+                      value={p.timeSec}
+                      onChange={(v) => updatePour(i, "timeSec", v)}
+                      mono
+                      suffix="sec"
+                      inputMode="numeric"
+                      placeholder="00"
+                    />
+                  </div>
+                  <Field
+                    label="Water"
+                    value={p.water}
+                    onChange={(v) => updatePour(i, "water", v)}
+                    mono
+                    suffix="g"
+                    inputMode="decimal"
+                    placeholder="50"
+                  />
+                </div>
+              </div>
+            ))}
+
+            {pours.length < MAX_POURS && (
+              <button
+                type="button"
+                onClick={addPour}
+                className="mt-4 text-[10px] uppercase tracking-[0.08em]"
+                style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
+              >
+                + Add pour
+              </button>
+            )}
+          </div>
+        )}
 
         <Divider />
 
