@@ -30,8 +30,6 @@ create table if not exists brews (
   water_g       numeric,
   water_temp_c  numeric,
   brew_time_s   integer,
-  -- Pourover only: [{time_s, water_g}, …] per pour. Null for other methods.
-  pours         jsonb,
   flavor_tags   text[],
   rating        smallint,
   notes         text,

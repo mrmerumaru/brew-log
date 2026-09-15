@@ -195,19 +195,6 @@ correctly. Keeping it numeric means it stays filterable and sortable, and
 decimals cover micro-adjustment. The unit autocompletes and carries forward, so
 in practice you set it once per grinder.
 
-**Pourover brews record a pour schedule.** Choosing the Pourover method reveals
-a Pours section inside Parameters: each pour has a time and its own water
-amount, Pour 1 is always present and can't be removed, and up to eight can be
-added. Leaving Pour 1 empty shows a warning but never blocks a save — a partial
-log beats an abandoned one, and nothing else in the app blocks saving either.
-Stored as `pours` jsonb — see [supabase/009-add-pours.sql](supabase/009-add-pours.sql).
-
-Each pour stores only the water *it* adds; the running total is derived on read
-(`pourTotals` in [src/brew.js](src/brew.js)) rather than stored, so editing pour
-2 can't leave a stale total on pour 3. The section header compares the pour total
-against the main Water field and flags a mismatch, but never blocks a save.
-Pours appear in history and deliberately **not** on the share card.
-
 Brew time is **two integer boxes** (min / sec) rather than one `m:ss` text
 field: typing a colon on a phone means switching keyboard layout and back, every
 single brew. All the numeric fields carry `inputMode` so phones open a number pad

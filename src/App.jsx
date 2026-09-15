@@ -9,7 +9,7 @@ import { suggestionsFrom } from "./brew";
 // Columns the form needs for carry-forward and autocomplete. Deliberately not
 // `*` — notes and photo_path aren't used here and would just add weight.
 const SETUP_COLUMNS =
-  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours";
+  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s";
 
 function Tab({ label, active, onClick }) {
   return (
