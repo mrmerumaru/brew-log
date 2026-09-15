@@ -100,29 +100,24 @@ Grind size and days-off-roast are deliberately left off it — still recorded on
 every brew and shown in history, but they're personal repeatability data that
 crowded the card without meaning much to anyone else.
 
-The two ratios use **two different layouts**, because the geometry forces it. A
-portrait photo has to be taller than the 1080px card width; the 1920px-tall
-Story card has room for that above its text, but the 1350px-tall Post card does
-not — even carrying nothing but the drink name, its tallest fitting photo is
-1029px, still landscape. So the Post card puts the text *over* the photo on a
-gradient scrim, while the Story card keeps the specimen layout below it.
+Both ratios use one layout: the **photo fills the whole card** and the text sits
+over a gradient scrim at the bottom in light type. That's what makes a portrait
+photo possible at 4:5 — a portrait photo has to be taller than the 1080px card
+width, and the 1350px-tall Post card has no room for that plus text beneath it.
+Even carrying nothing but the drink name, the tallest photo that would fit below
+the text is 1029px, still landscape.
 
-Visually the Story card is a specimen sheet: the photo **bleeds to all four edges**
-from the top, hands off to the paper panel across an amber hairline, and the
-stats sit in a banded table opened by a dashed rule with hairlines between
-columns.
+The scrim fades in 180px above the headline and reaches 94% at the bottom edge,
+leaving the photo completely clear across the top 57–64% of a Story card and 49%
+of a Post card. Stats run inline (`RATIO 1:16.1 · DOSE 18g · …`) rather than in a
+bordered table, which would fight the photograph.
 
-The photo is a **4:5 portrait** frame — `PHOTO_ASPECT` in
-[src/shareCard.js](src/shareCard.js), expressed as height ÷ width, so values
-above 1 are portrait.
-
-The photo gets the height it asks for until the content can't fit beneath it.
-Then spacing compresses (gaps 36px → 16px, the rule-to-content step 56px → 28px)
-and only once that's exhausted does the photo give way. So a tall photo squeezes
-the information rather than colliding with it, and a fully-filled Story card
-lands at about 1.16 rather than the full 1.25. Any paper left over is split
-symmetrically above and below the content, so a short photo reads as deliberate
-framing rather than a gap.
+**Flavour tags appear on the Story card only** — `flavorTags` per ratio in
+`CARD_RATIOS`. The Story card can carry two chip rows and still leave 57% of the
+photo clear; on the much shorter Post card the same rows would eat another 120px
+of a smaller image. Over a photo they're translucent white pills rather than the
+app's pale-green ones, since a light solid fill flattens into a row of blank
+shapes against a bright background.
 
 Share cards are painted on a canvas in [src/shareCard.js](src/shareCard.js) at
 1080×1350 (Instagram 4:5) rather than via html-to-image as the system design

@@ -13,27 +13,27 @@
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { formatBrewTime, ratioOf, milkLabel, originLabel } from "./brew";
 
-// The layout is elastic — the photo absorbs whatever space the text doesn't
-// need — so a new aspect is just a new entry here.
+// Both ratios share one layout: the photo fills the card and the text sits over
+// a gradient scrim at the bottom. Adding an aspect is just another entry here.
+//
+// flavorTags is per-ratio because the two cards have very different room to
+// spare. The Story card leaves the top ~58% of the photo clear even with two
+// chip rows; on the shorter Post card they'd push the scrim over another 120px
+// of a much smaller image.
 export const CARD_RATIOS = {
-  // Two layouts, because the geometry forces it. A portrait photo has to be
-  // taller than the 1080px card width, which the 1920px-tall Story card can
-  // accommodate above the text but the 1350px-tall Post card cannot — even
-  // carrying nothing but the drink name, its tallest fitting photo is 1029px,
-  // still landscape. So the Post card puts the text over the photo instead.
   "9:16": {
     label: "Story",
     note: "Instagram Stories, Reels, TikTok",
     w: 1080,
     h: 1920,
-    layout: "specimen",
+    flavorTags: true,
   },
   "4:5": {
     label: "Post",
     note: "Instagram feed, X, Threads",
     w: 1080,
     h: 1350,
-    layout: "overlay",
+    flavorTags: false,
   },
 };
 
@@ -47,48 +47,6 @@ export const DEFAULT_TRANSFORM = { scale: 1, offsetX: 0, offsetY: 0 };
 export const MAX_ZOOM = 3;
 
 const PAD = 72;
-
-// Vertical rhythm. Block heights are measured, not guessed, so the layout can
-// be assembled bottom-up and never collide with the footer.
-const GAP = 36;
-const CHIP_H = 54;
-const CHIP_GAP = 12;
-const MAX_CHIP_ROWS = 2;
-
-// The photo bleeds to the card edges and hands off to the paper panel across an
-// amber hairline. No cap on its height: it starts at the very top edge and runs
-// to wherever the content begins, so there's never leftover space to centre it
-// in — which is what used to leave a void above it.
-const RULE_H = 5;
-// The step from the amber rule to the headline separates two zones — image and
-// text — so it stays the largest vertical interval on the card, comfortably
-// bigger than the gaps between content blocks even when everything compresses.
-const AFTER_RULE = 88;
-
-// Photo height as a fraction of the card WIDTH, so values above 1 are portrait:
-// 1.25 is a 4:5 portrait frame, 1 is square, 2/3 is 3:2 landscape.
-//
-// The photo gets what it asks for until the content can't fit beneath it. Then
-// spacing compresses — gaps down to MIN_GAP, the rule-to-content step down to
-// MIN_AFTER_RULE — and only once that's exhausted does the photo give way. So a
-// tall photo squeezes the information rather than colliding with it.
-const PHOTO_ASPECT = 1.25;
-const MIN_GAP = 16;
-const MIN_AFTER_RULE = 56;
-
-// Stats sit in a banded table: a dashed rule across the top, then columns
-// separated by hairlines.
-const STATS_BAND_H = 104;
-const STATS_TOP_PAD = 26;
-
-// One typeface and size for the method/roastery, beans and milk lines, so they
-// read as a single block rather than three unrelated treatments.
-const LINE_FONT = 32;
-
-// The stat label is the larger, bolder half; the reading sits under it a little
-// smaller and quieter.
-const STAT_LABEL_FONT = 30;
-const STAT_VALUE_FONT = 26;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -152,16 +110,6 @@ function drawRating(ctx, x, y, rating) {
   }
 }
 
-function roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 /**
  * Draw the photo to fill the frame, honouring the user's zoom and pan.
  * Returns the travel available at this scale so the caller can convert pointer
@@ -185,17 +133,27 @@ function drawPhoto(ctx, img, x, y, w, h, transform) {
   return { maxOffsetX, maxOffsetY };
 }
 
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 // Measure-then-draw: work out which chips fit on which row before committing to
 // a height, so the caller can reserve exactly the space needed.
 function layoutChips(ctx, tags, maxWidth) {
-  ctx.font = `400 28px ${SERIF}`;
+  ctx.font = `400 ${OVER_CHIP_FONT}px ${SERIF}`;
   const rows = [];
   let row = [];
   let rowWidth = 0;
 
   for (const tag of tags) {
-    const chipW = ctx.measureText(tag).width + 46;
-    const needed = row.length ? rowWidth + CHIP_GAP + chipW : chipW;
+    const chipW = ctx.measureText(tag).width + 44;
+    const needed = row.length ? rowWidth + OVER_CHIP_GAP + chipW : chipW;
     if (needed > maxWidth && row.length) {
       rows.push(row);
       if (rows.length === MAX_CHIP_ROWS) return { rows, height: chipRowsHeight(rows) };
@@ -212,7 +170,7 @@ function layoutChips(ctx, tags, maxWidth) {
 
 function chipRowsHeight(rows) {
   if (!rows.length) return 0;
-  return rows.length * CHIP_H + (rows.length - 1) * CHIP_GAP;
+  return rows.length * OVER_CHIP_H + (rows.length - 1) * OVER_CHIP_GAP;
 }
 
 function truncate(ctx, text, maxWidth) {
@@ -265,8 +223,8 @@ export async function decodePhoto(blob) {
  * @returns {{ photo: null | { maxOffsetX: number, maxOffsetY: number } }}
  *   travel available for panning, in card pixels
  */
-/** Everything both layouts render, derived once. */
-function cardContent(ctx, brew, inner) {
+/** Everything the card renders, derived once. */
+function cardContent(brew) {
   return {
     // The drink is the headline. When there is one, the brewing method drops to
     // the secondary line rather than disappearing.
@@ -288,7 +246,6 @@ function cardContent(ctx, brew, inner) {
       ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
       ["TIME", formatBrewTime(brew.brew_time_s)],
     ].filter(([, v]) => v),
-    chips: layoutChips(ctx, brew.flavor_tags ?? [], inner),
   };
 }
 
@@ -309,213 +266,7 @@ function formattedDate(brew) {
  *   travel available for panning, in card pixels
  */
 export function drawShareCard(ctx, brew, img, ratio = DEFAULT_RATIO, transform = DEFAULT_TRANSFORM) {
-  const spec = CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO];
-  return spec.layout === "overlay"
-    ? drawOverlay(ctx, brew, img, spec, transform)
-    : drawSpecimen(ctx, brew, img, spec, transform);
-}
-
-function drawSpecimen(ctx, brew, img, spec, transform) {
-  const { w: W, h: H } = spec;
-
-  ctx.save();
-  ctx.fillStyle = TOKENS.paper;
-  ctx.fillRect(0, 0, W, H);
-
-  const inner = W - PAD * 2;
-  ctx.textBaseline = "top";
-
-  // ---- Measure everything before drawing anything -------------------------
-  // The footer owns the bottom of the card; text blocks stack upward from it;
-  // the photo takes whatever is left. Nothing can overlap because no block is
-  // positioned until every height is known.
-
-  const { headline, madeLine, beanLine, milk, stats, chips } = cardContent(ctx, brew, inner);
-
-  const METHOD_H = 76;
-  const LINE_H = 46;
-
-  const blocks = [METHOD_H];
-  if (madeLine) blocks.push(LINE_H);
-  if (beanLine) blocks.push(LINE_H);
-  if (milk) blocks.push(LINE_H);
-  if (stats.length) blocks.push(STATS_BAND_H);
-  if (chips.height) blocks.push(chips.height);
-
-  const sumBlocks = blocks.reduce((a, b) => a + b, 0);
-  const gapCount = Math.max(0, blocks.length - 1);
-
-  const footerLineY = H - PAD - 56;
-  const contentBottom = footerLineY - 56;
-
-  // Resolved below: both depend on how much room the photo leaves.
-  let gap = GAP;
-  let contentH = sumBlocks + gap * gapCount;
-  let y = contentBottom - contentH;
-
-  // ---- Photo -------------------------------------------------------------
-  let photoMetrics = null;
-  if (img) {
-    // The tallest photo that still leaves room for the content at its most
-    // compressed. This is the floor that keeps text off the footer.
-    const floorContentH = sumBlocks + MIN_GAP * gapCount;
-    const maxPhotoH = Math.max(0, contentBottom - floorContentH - MIN_AFTER_RULE - RULE_H);
-    const photoH = Math.min(W * PHOTO_ASPECT, maxPhotoH);
-
-    // Hand the leftover paper out in priority order: the step below the rule
-    // first, then the gaps between blocks, then centre whatever still remains.
-    const spare = contentBottom - photoH - RULE_H - floorContentH;
-    const afterRule = Math.min(AFTER_RULE, spare);
-    const gapSlack = spare - afterRule;
-    gap = gapCount ? Math.min(GAP, MIN_GAP + gapSlack / gapCount) : GAP;
-    contentH = sumBlocks + gap * gapCount;
-
-    const regionTop = photoH + RULE_H + afterRule;
-    y = regionTop + Math.max(0, (contentBottom - regionTop - contentH) / 2);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, W, photoH);
-    ctx.clip();
-    photoMetrics = drawPhoto(ctx, img, 0, 0, W, photoH, transform);
-    ctx.restore();
-
-    // The accent that hands off from photo to paper.
-    ctx.fillStyle = TOKENS.amber;
-    ctx.fillRect(0, photoH, W, RULE_H);
-  } else {
-    // Nothing to fill the space, so centre the text between top and footer
-    // rather than stranding it at the bottom.
-    y = PAD + (footerLineY - PAD - contentH) / 2;
-  }
-
-  // ---- Method + rating ---------------------------------------------------
-  // Uppercase gives the headline poster weight against the serif lines below.
-  ctx.font = `700 64px ${SANS}`;
-  ctx.fillStyle = TOKENS.ink;
-  ctx.fillText(truncate(ctx, headline.toUpperCase(), inner - RATING_W - 32), PAD, y);
-
-  // Optically centred against the 64px headline.
-  drawRating(ctx, W - PAD - RATING_W, y + 6, brew.rating ?? 0);
-
-  y += METHOD_H + gap;
-
-  // ---- Beans -------------------------------------------------------------
-  if (madeLine) {
-    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
-    ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(truncate(ctx, madeLine, inner), PAD, y);
-    y += LINE_H + gap;
-  }
-
-  // ---- Beans -------------------------------------------------------------
-  if (beanLine) {
-    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(truncate(ctx, beanLine, inner), PAD, y);
-    y += LINE_H + gap;
-  }
-
-  // ---- Milk --------------------------------------------------------------
-  if (milk) {
-    ctx.font = `400 ${LINE_FONT}px ${SERIF}`;
-    ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(truncate(ctx, milk, inner), PAD, y);
-    y += LINE_H + gap;
-  }
-
-  // ---- Stats -------------------------------------------------------------
-  if (stats.length) {
-    // Dashed rule opens the band, echoing the dividers in the app's form.
-    ctx.strokeStyle = TOKENS.rule;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 6]);
-    ctx.beginPath();
-    ctx.moveTo(PAD, y);
-    ctx.lineTo(W - PAD, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const bandTop = y + STATS_TOP_PAD;
-    // Even columns across the full width, so four stats don't bunch left.
-    const colW = inner / stats.length;
-
-    stats.forEach(([label, value], i) => {
-      const colX = PAD + colW * i;
-      // Column 0's left edge is the page margin, so only the inner boundaries
-      // get a hairline — and only those columns need the matching text inset.
-      const textX = colX + (i === 0 ? 0 : 20);
-
-      if (i > 0) {
-        ctx.strokeStyle = TOKENS.rule;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(colX, bandTop - 8);
-        ctx.lineTo(colX, bandTop + 72);
-        ctx.stroke();
-      }
-
-      // The label leads and the reading follows it, quieter and smaller.
-      ctx.font = `700 ${STAT_LABEL_FONT}px ${MONO}`;
-      ctx.fillStyle = TOKENS.ink;
-      // Labels get truncated too, so a longer one added later can't silently
-      // overlap its neighbour.
-      ctx.fillText(truncate(ctx, label, colW - 36), textX, bandTop);
-
-      ctx.font = `500 ${STAT_VALUE_FONT}px ${MONO}`;
-      ctx.fillStyle = TOKENS.inkFaint;
-      ctx.fillText(truncate(ctx, String(value), colW - 36), textX, bandTop + 40);
-    });
-
-    y += STATS_BAND_H + gap;
-  }
-
-  // ---- Flavour tags ------------------------------------------------------
-  if (chips.height) {
-    ctx.font = `400 28px ${SERIF}`;
-    chips.rows.forEach((row, rowIndex) => {
-      let x = PAD;
-      const rowY = y + rowIndex * (CHIP_H + CHIP_GAP);
-      row.forEach(({ tag, w }) => {
-        ctx.fillStyle = TOKENS.greenSoft;
-        roundRectPath(ctx, x, rowY, w, CHIP_H, CHIP_H / 2);
-        ctx.fill();
-        ctx.fillStyle = TOKENS.green;
-        ctx.fillText(tag, x + 23, rowY + 13);
-        x += w + CHIP_GAP;
-      });
-    });
-  }
-
-  // ---- Footer ------------------------------------------------------------
-  ctx.strokeStyle = TOKENS.rule;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 6]);
-  ctx.beginPath();
-  ctx.moveTo(PAD, footerLineY);
-  ctx.lineTo(W - PAD, footerLineY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  const footerTextY = footerLineY + 26;
-
-  // Cup mark ahead of the wordmark, same green.
-  const MARK_SIZE = 26;
-  drawCup(ctx, PAD, footerTextY - 3, MARK_SIZE, true, TOKENS.green);
-
-  ctx.font = `700 22px ${SANS}`;
-  ctx.fillStyle = TOKENS.green;
-  ctx.fillText("BREW LOG", PAD + MARK_SIZE + 10, footerTextY);
-
-  const date = formattedDate(brew);
-  if (date) {
-    ctx.font = `400 22px ${MONO}`;
-    ctx.fillStyle = TOKENS.inkFaint;
-    ctx.fillText(date, W - PAD - ctx.measureText(date).width, footerTextY);
-  }
-
-  ctx.restore();
-  return { photo: photoMetrics };
+  return drawOverlay(ctx, brew, img, CARD_RATIOS[ratio] ?? CARD_RATIOS[DEFAULT_RATIO], transform);
 }
 
 // --- Overlay layout (the Post card) ---------------------------------------
@@ -531,6 +282,10 @@ const OVER_LINE_H = 44;
 const OVER_STATS_H = 40;
 const OVER_GAP = 26;
 const OVER_FOOTER_H = 34;
+const OVER_CHIP_H = 48;
+const OVER_CHIP_GAP = 12;
+const OVER_CHIP_FONT = 26;
+const MAX_CHIP_ROWS = 2;
 
 function drawOverlay(ctx, brew, img, spec, transform) {
   const { w: W, h: H } = spec;
@@ -542,9 +297,11 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   const inner = W - PAD * 2;
   ctx.textBaseline = "top";
 
-  const { headline, madeLine, beanLine, milk, stats } = cardContent(ctx, brew, inner);
-  // Flavour chips are dropped here: pills over a photo read as clutter, and the
-  // scrim would have to grow to cover two more rows.
+  const { headline, madeLine, beanLine, milk, stats } = cardContent(brew);
+  // Only where the ratio has room for them — see CARD_RATIOS.
+  const chips = spec.flavorTags
+    ? layoutChips(ctx, brew.flavor_tags ?? [], inner)
+    : { rows: [], height: 0 };
 
   // ---- Photo, full card --------------------------------------------------
   let photoMetrics = null;
@@ -563,6 +320,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   if (beanLine) blocks.push(OVER_LINE_H);
   if (milk) blocks.push(OVER_LINE_H);
   if (stats.length) blocks.push(OVER_STATS_H);
+  if (chips.height) blocks.push(chips.height);
 
   const contentH = blocks.reduce((a, b) => a + b, 0) + OVER_GAP * (blocks.length - 1);
   const footerTop = H - PAD - OVER_FOOTER_H;
@@ -620,6 +378,32 @@ function drawOverlay(ctx, brew, img, spec, transform) {
       ctx.fillStyle = OVER_BRIGHT;
       ctx.fillText(String(value), x, y);
       x += ctx.measureText(String(value)).width;
+    });
+    y += OVER_STATS_H + OVER_GAP;
+  }
+
+  // ---- Flavour tags ------------------------------------------------------
+  // Translucent white pills rather than the app's pale-green ones: over a photo
+  // a frosted fill stays legible against whatever is behind it, where a light
+  // solid would flatten into a row of blank shapes.
+  if (chips.height) {
+    ctx.font = `400 ${OVER_CHIP_FONT}px ${SERIF}`;
+    chips.rows.forEach((row, rowIndex) => {
+      let x = PAD;
+      const rowY = y + rowIndex * (OVER_CHIP_H + OVER_CHIP_GAP);
+      row.forEach(({ tag, w }) => {
+        ctx.fillStyle = "rgba(251, 250, 247, 0.18)";
+        roundRectPath(ctx, x, rowY, w, OVER_CHIP_H, OVER_CHIP_H / 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(251, 250, 247, 0.34)";
+        ctx.lineWidth = 2;
+        roundRectPath(ctx, x, rowY, w, OVER_CHIP_H, OVER_CHIP_H / 2);
+        ctx.stroke();
+
+        ctx.fillStyle = OVER_BRIGHT;
+        ctx.fillText(tag, x + 22, rowY + 11);
+        x += w + OVER_CHIP_GAP;
+      });
     });
   }
 
