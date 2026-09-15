@@ -71,7 +71,7 @@ environment variables from step 4, under **Environment Variables**. Every later
 ```
 src/
   App.jsx            session check, Log/History tabs, sign out
-  Login.jsx          magic-link sign in
+  Login.jsx          Google sign in
   BrewForm.jsx       the brew entry form; saves to Supabase + uploads the photo
   BrewHistory.jsx    past brews, newest first, with signed photo URLs
   supabaseClient.js  the shared Supabase connection
@@ -82,10 +82,18 @@ docs/                PRD, system design, implementation guides, original mockup
 
 ## Status
 
-**Milestones M1–M5 complete.** Structured logging form, Google and magic-link
-auth, save to Postgres, photo upload, history list with filtering, edit and
-delete, share-card generation, and setup carry-forward. Verified end to end in
-production, including that a second account sees only its own brews.
+**Milestones M1–M5 complete.** Structured logging form, Google sign-in, save to
+Postgres, photo upload, history list with filtering, edit and delete, share-card
+generation, and setup carry-forward. Verified end to end in production, including
+that a second account sees only its own brews.
+
+Sign-in is **Google only**. Magic links were removed from the UI once they
+stopped being used — Supabase's built-in email sender allows only a couple of
+messages an hour, which made them unreliable for anyone but the first user. Email
+OTP is still enabled on the Supabase project, so restoring a fallback is a UI
+change with no configuration to redo. Because Google is now the only route in,
+the OAuth consent screen needs to be **published** rather than left in Testing
+mode, or only accounts added as test users can sign in.
 
 Presets are handled without the separate `beans`/`equipment` tables the system
 design anticipated: a new brew inherits method, equipment, beans and parameters
