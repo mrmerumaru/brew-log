@@ -91,6 +91,64 @@ export function num(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+// --- Pour schedule (pourover only) ----------------------------------------
+
+export const MAX_POURS = 8;
+export const BLANK_POUR = { timeMin: "", timeSec: "", water: "" };
+
+export function poursFromBrew(brew) {
+  const raw = Array.isArray(brew?.pours) ? brew.pours : [];
+  const rows = raw.map((p) => ({
+    ...splitSeconds(p?.time_s ?? null),
+    water: p?.water_g == null ? "" : String(p.water_g),
+  }));
+  // Pour 1 always exists: a pourover has at least one.
+  return rows.length ? rows : [{ ...BLANK_POUR }];
+}
+
+/** Form rows -> what gets stored. Drops rows with neither a time nor a volume. */
+export function poursToPayload(pours = []) {
+  const cleaned = pours
+    .map((p) => ({
+      time_s: joinSeconds(p?.timeMin, p?.timeSec),
+      water_g: num(p?.water),
+    }))
+    .filter((p) => p.time_s != null || p.water_g != null);
+
+  return cleaned.length ? cleaned : null;
+}
+
+/**
+ * Running totals, index-aligned with the rows. Each pour stores only its own
+ * volume, so the cumulative figure is derived here — that way editing pour 2
+ * can't leave a stale total on pour 3.
+ */
+export function pourTotals(pours = []) {
+  let running = 0;
+  return pours.map((p) => {
+    running += num(p?.water) ?? 0;
+    return running;
+  });
+}
+
+export function pourTotal(pours = []) {
+  const totals = pourTotals(pours);
+  return totals.length ? totals[totals.length - 1] : 0;
+}
+
+/** "0:00 50g · 0:45 100g · 1:30 100g", or null when there's no schedule. */
+export function poursLabel(brew) {
+  const parts = (Array.isArray(brew?.pours) ? brew.pours : [])
+    .map((p) =>
+      [formatBrewTime(p?.time_s), p?.water_g == null ? null : `${p.water_g}g`]
+        .filter(Boolean)
+        .join(" "),
+    )
+    .filter(Boolean);
+
+  return parts.length ? parts.join(" · ") : null;
+}
+
 // --- Blends ---------------------------------------------------------------
 // A blend is stored as an array on `blend_components`; a single origin uses the
 // flat bean_name / origin / process columns. Only one of the two is ever

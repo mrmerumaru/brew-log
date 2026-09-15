@@ -1,0 +1,23 @@
+-- Migration 009 — the pour schedule, for pourover brews.
+--
+-- Run this in the Supabase dashboard: SQL Editor -> New query -> Run.
+-- schema.sql now includes this column for fresh setups.
+--
+-- A pourover is several pours, each at a point in the brew. The single
+-- water_g/brew_time_s pair on the row describes the brew as a whole and can't
+-- express the schedule that produced it.
+--
+-- Shape, when method = 'Pourover':
+--   [{"time_s": 0,  "water_g": 50},
+--    {"time_s": 45, "water_g": 100},
+--    {"time_s": 90, "water_g": 100}]
+--
+-- water_g is the water added by THAT pour, not the running total. The
+-- cumulative figure is derived on read (pourTotals in src/brew.js) rather than
+-- stored, so the two can never disagree after an edit.
+--
+-- Null for every other method. jsonb for the same reason as blend_components:
+-- the app loads whole rows and works over them in memory, so a child table
+-- would add a join and an RLS policy for no gain.
+
+alter table brews add column if not exists pours jsonb;
