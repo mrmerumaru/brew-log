@@ -679,26 +679,6 @@ export default function BrewForm({
           />
         </div>
 
-        {/* Grind size and its unit sit together: the number is meaningless
-            without knowing whether it counts clicks, dial numbers or microns. */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 mt-4">
-          <Field
-            label="Grind size"
-            value={grindSize}
-            onChange={setGrindSize}
-            placeholder="18"
-            mono
-            inputMode="decimal"
-          />
-          <Field
-            label="Unit"
-            value={grindUnit}
-            onChange={setGrindUnit}
-            placeholder="clicks"
-            suggestions={grindUnitSuggestions}
-          />
-        </div>
-
         <Divider />
 
         {/* 04 Beans */}
@@ -939,6 +919,25 @@ export default function BrewForm({
               placeholder="45"
             />
           </div>
+
+          {/* Grind size and its unit stay side by side: the number is
+              meaningless without knowing whether it counts clicks, dial
+              numbers or microns. */}
+          <Field
+            label="Grind size"
+            value={grindSize}
+            onChange={setGrindSize}
+            placeholder="18"
+            mono
+            inputMode="decimal"
+          />
+          <Field
+            label="Unit"
+            value={grindUnit}
+            onChange={setGrindUnit}
+            placeholder="clicks"
+            suggestions={grindUnitSuggestions}
+          />
         </div>
 
         <Divider />
