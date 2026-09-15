@@ -176,6 +176,8 @@ function Field({
   // "numeric" / "decimal" make phones open a number pad instead of the full
   // keyboard — no layout switching to reach digits or a decimal point.
   inputMode,
+  // For fields with no visible label, so the input still has an accessible name.
+  ariaLabel,
 }) {
   // A native <datalist> gives autocomplete without a custom dropdown, and still
   // lets you type a value that isn't in the list.
@@ -188,12 +190,16 @@ function Field({
         className="text-[10px] tracking-[0.1em] uppercase"
         style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
       >
-        {label}
+        {/* A blank label still has to occupy a line, or this field's input sits
+            higher than its labelled neighbours. A plain space collapses to zero
+            height; a non-breaking one doesn't. */}
+        {typeof label === "string" && label.trim() ? label : " "}
       </span>
       <div className="flex items-baseline gap-1">
         <input
           type={type}
           inputMode={inputMode}
+          aria-label={ariaLabel}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -939,8 +945,9 @@ export default function BrewForm({
               placeholder="2"
             />
             <Field
-              // Blank label keeps this box aligned with the Time box beside it.
-              label={" "}
+              // Shares the "Time" label with the box beside it.
+              label=""
+              ariaLabel="Brew time seconds"
               value={timeSec}
               onChange={setTimeSec}
               mono
@@ -1046,6 +1053,7 @@ export default function BrewForm({
                   <div className="grid grid-cols-2 gap-x-2">
                     <Field
                       label="At"
+                      ariaLabel={`Pour ${i + 1} minutes`}
                       value={p.timeMin}
                       onChange={(v) => updatePour(i, "timeMin", v)}
                       mono
@@ -1054,7 +1062,9 @@ export default function BrewForm({
                       placeholder="0"
                     />
                     <Field
-                      label={" "}
+                      // Shares the "At" label with the box beside it.
+                      label=""
+                      ariaLabel={`Pour ${i + 1} seconds`}
                       value={p.timeSec}
                       onChange={(v) => updatePour(i, "timeSec", v)}
                       mono
