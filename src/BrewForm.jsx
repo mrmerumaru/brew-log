@@ -318,7 +318,15 @@ export default function BrewForm({
   const removeComponent = (index) =>
     setComponents((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== index)));
 
+  const isOtherMethod = methodChoice === METHOD_OTHER;
+  // What actually gets saved. Falls back to "Other" so picking the chip and
+  // typing nothing still records something rather than an empty method.
+  const method = isOtherMethod ? customMethod.trim() || METHOD_OTHER : methodChoice;
+
   // The pour schedule is a pourover concept; other methods don't show it.
+  // Must stay below `method` — reading a const before its declaration throws
+  // "Cannot access 'method' before initialization" on every render, which with
+  // no error boundary unmounts the whole app and leaves a blank page.
   const isPourover = method === "Pourover";
   const pourRunningTotals = pourTotals(pours);
   const poursWater = pourTotal(pours);
@@ -332,11 +340,6 @@ export default function BrewForm({
   // Pour 1 can't be removed — a pourover has at least one pour.
   const removePour = (index) =>
     setPours((prev) => (index === 0 ? prev : prev.filter((_, i) => i !== index)));
-
-  const isOtherMethod = methodChoice === METHOD_OTHER;
-  // What actually gets saved. Falls back to "Other" so picking the chip and
-  // typing nothing still records something rather than an empty method.
-  const method = isOtherMethod ? customMethod.trim() || METHOD_OTHER : methodChoice;
 
   // Only the hand-typed methods — the preset ones already have their own chips.
   const customMethodSuggestions = useMemo(

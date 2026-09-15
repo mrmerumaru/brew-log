@@ -71,6 +71,7 @@ environment variables from step 4, under **Environment Variables**. Every later
 ```
 src/
   App.jsx            session check, Log/History tabs, sign out
+  ErrorBoundary.jsx  catches render errors so a crash isn't a blank page
   Login.jsx          Google sign in
   BrewForm.jsx       the brew entry form; saves to Supabase + uploads the photo
   BrewHistory.jsx    past brews, newest first, with signed photo URLs
@@ -237,6 +238,15 @@ no connection you get the shell and an error rather than a browser error page.
 Supabase requests are deliberately never cached: they're per-user and
 auth-scoped, and a stale copy could outlive a sign-out. Real offline logging
 would need a local write queue that syncs later.
+
+[src/ErrorBoundary.jsx](src/ErrorBoundary.jsx) wraps the app in `main.jsx`. A
+thrown render error otherwise unmounts the whole tree and leaves a blank white
+page with nothing on screen to explain it — which is what a `const` read before
+its declaration in `BrewForm` produced, and it took a revert to isolate. The
+boundary shows the error name, message and component stack instead. Note it
+catches render, lifecycle and constructor errors only; event handlers and async
+callbacks still need their own try/catch, which is why `handleSave` and the
+share flow have theirs.
 
 ## Not built yet
 
