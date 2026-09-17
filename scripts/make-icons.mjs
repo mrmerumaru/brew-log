@@ -1,151 +1,91 @@
-// Generates the PWA icons in public/.
+// Generates the PWA icons in public/ from image/logo.jpeg.
 //
-// Run with `node scripts/make-icons.mjs` — only needed if the mark or the
-// palette changes. Writing a minimal PNG encoder here rather than adding an
-// image library: the icon is two shapes and a background, and this keeps the
-// dependency list at four packages.
+// Run with `node scripts/make-icons.mjs` — only needed when the logo changes.
+// Uses macOS `sips`, which is built in, rather than adding an image dependency;
+// the generated PNGs are committed, so this only has to run on a Mac.
 //
-// The cup matches drawCup() in src/shareCard.js, so the home-screen icon, the
-// share-card footer mark and the in-app rating icon are the same shape.
+// What it does and why:
+//
+// The source is a landscape JPEG with the dark rounded badge sitting in white
+// padding. Three things have to happen:
+//
+//   1. Crop to the badge. CROP below is the largest square centred on the gold
+//      artwork that contains no near-white pixel on any edge — measured from
+//      the source, not eyeballed. Cropping any wider catches the badge's
+//      rounded corners and pulls white into the icon's corners.
+//   2. Pad back out with the badge colour. The clean square leaves the artwork
+//      at 85% of the width, which is tight for an app icon; padding restores
+//      roughly the ~79% the badge was designed with.
+//   3. Output PNG. JPEG has no alpha and its ringing artefacts are very visible
+//      on flat colour at small sizes.
+//
+// The rounded corners are deliberately cropped away rather than preserved: iOS
+// masks the apple-touch-icon and Android masks the maskable icon, so keeping
+// them would round an already-rounded shape.
 
-import zlib from "node:zlib";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SRC = path.join(ROOT, "image", "logo.jpeg");
+const OUT = path.join(ROOT, "public");
+const TMP = fs.mkdtempSync("/tmp/brewlog-icons-");
 
-const GREEN = [47, 82, 51]; // TOKENS.green  #2F5233
-const PAPER = [251, 250, 247]; // TOKENS.card   #FBFAF7
+// Measured from the source: offsetY, offsetX, side. The largest white-free
+// square is 1459 at (679, 21); this insets 5px further on each side because the
+// badge's outermost row carries a bright highlight that shows as a seam against
+// the flat padding. The interior is flat to within 4/255 from there inward.
+const CROP = { y: 26, x: 684, side: 1449 };
+// The flat interior colour, so padding is seamless. Sampled well inside the
+// edge — a sample taken at the very corner picks up that highlight instead.
+const BADGE = "262626";
 
-// --- PNG encoding ----------------------------------------------------------
+const sips = (...args) => execFileSync("sips", args, { stdio: ["ignore", "ignore", "pipe"] });
 
-const CRC_TABLE = (() => {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
-  }
-  return table;
-})();
+const badge = path.join(TMP, "badge.png");
+sips("-s", "format", "png", SRC, "--out", path.join(TMP, "full.png"));
+sips(
+  "--cropOffset", String(CROP.y), String(CROP.x),
+  "-c", String(CROP.side), String(CROP.side),
+  path.join(TMP, "full.png"), "--out", badge,
+);
 
-function crc32(buf) {
-  let c = -1;
-  for (let i = 0; i < buf.length; i += 1) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
-}
-
-function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length, 0);
-  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body), 0);
-  return Buffer.concat([len, body, crc]);
-}
-
-function encodePng(size, rgba) {
-  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // colour type: RGBA
-  // 10..12 stay zero: deflate, adaptive filtering, no interlace
-
-  // Each scanline is prefixed with its filter byte; 0 means "none".
-  const stride = size * 4;
-  const raw = Buffer.alloc((stride + 1) * size);
-  for (let y = 0; y < size; y += 1) {
-    raw[y * (stride + 1)] = 0;
-    rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
-  }
-
-  return Buffer.concat([
-    sig,
-    chunk("IHDR", ihdr),
-    chunk("IDAT", zlib.deflateSync(raw, { level: 9 })),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-// --- The mark --------------------------------------------------------------
-
-/**
- * @param size    pixel dimensions
- * @param cupFrac how much of the icon the cup spans; smaller values leave the
- *                safe-zone padding a maskable icon needs, since Android crops
- *                maskable icons to a circle on some launchers.
- */
-function renderIcon(size, cupFrac) {
-  const SS = 4; // supersampling factor, for antialiased edges
-  const rgba = Buffer.alloc(size * size * 4);
-
-  // Cup geometry, in pixels. Proportions lifted from drawCup().
-  const bodyW = size * cupFrac;
-  const bodyH = bodyW * 0.89;
-  const handleR = bodyW * 0.23;
-  const handleW = bodyW * 0.061;
-  // Centre the body plus its handle as one unit.
-  const totalW = bodyW + handleR + handleW;
-  const x0 = (size - totalW) / 2;
-  const y0 = (size - bodyH) / 2;
-  const hcx = x0 + bodyW;
-  const hcy = y0 + bodyH * 0.36;
-
-  const inCup = (px, py) => {
-    // Tapered body: the sides draw in as they descend.
-    if (py >= y0 && py <= y0 + bodyH) {
-      const t = (py - y0) / bodyH;
-      if (px >= x0 + bodyW * 0.14 * t && px <= x0 + bodyW * (1 - 0.16 * t)) return true;
-    }
-    // Handle: the right half of a ring.
-    const dx = px - hcx;
-    const dy = py - hcy;
-    if (dx >= 0) {
-      const r = Math.hypot(dx, dy);
-      if (r >= handleR - handleW && r <= handleR + handleW) return true;
-    }
-    return false;
-  };
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      let hits = 0;
-      for (let sy = 0; sy < SS; sy += 1) {
-        for (let sx = 0; sx < SS; sx += 1) {
-          if (inCup(x + (sx + 0.5) / SS, y + (sy + 0.5) / SS)) hits += 1;
-        }
-      }
-      const a = hits / (SS * SS);
-      const i = (y * size + x) * 4;
-      // Full-bleed background: iOS rounds the apple-touch-icon itself, and
-      // Android masks the maskable one, so rounding it here would double up.
-      for (let c = 0; c < 3; c += 1) {
-        rgba[i + c] = Math.round(GREEN[c] * (1 - a) + PAPER[c] * a);
-      }
-      rgba[i + 3] = 255;
-    }
-  }
-
-  return encodePng(size, rgba);
-}
+// [filename, size, inner] — inner is the badge's rendered width before padding.
+// 93% of the size keeps the artwork near the original 79%; the maskable icon
+// goes much smaller so the mark survives a circular launcher crop; the favicon
+// isn't padded at all, because at 32px every pixel of the mark counts.
+const ICONS = [
+  ["icon-192.png", 192, 179],
+  ["icon-512.png", 512, 476],
+  ["icon-maskable-512.png", 512, 361],
+  ["apple-touch-icon.png", 180, 167],
+  ["favicon-32.png", 32, 32],
+];
 
 fs.mkdirSync(OUT, { recursive: true });
 
-const icons = [
-  ["icon-192.png", 192, 0.46],
-  ["icon-512.png", 512, 0.46],
-  // Tighter, so the mark survives an aggressive launcher crop.
-  ["icon-maskable-512.png", 512, 0.34],
-  ["apple-touch-icon.png", 180, 0.46],
-  ["favicon-32.png", 32, 0.5],
-];
+for (const [name, size, inner] of ICONS) {
+  const dest = path.join(OUT, name);
+  const scaled = path.join(TMP, `s-${name}`);
+  sips("--resampleHeightWidth", String(inner), String(inner), badge, "--out", scaled);
 
-for (const [name, size, cupFrac] of icons) {
-  const png = renderIcon(size, cupFrac);
-  fs.writeFileSync(path.join(OUT, name), png);
-  console.log(`${name.padEnd(24)} ${size}x${size}  ${(png.length / 1024).toFixed(1)} kB`);
+  if (inner === size) {
+    fs.copyFileSync(scaled, dest);
+  } else {
+    sips(
+      "--padToHeightWidth", String(size), String(size),
+      "--padColor", BADGE,
+      scaled, "--out", dest,
+    );
+  }
+
+  const bytes = fs.statSync(dest).size;
+  console.log(
+    `${name.padEnd(24)} ${size}x${size}  mark at ${Math.round((inner / size) * 85)}% ` +
+      `of width  ${(bytes / 1024).toFixed(1)} kB`,
+  );
 }
+
+fs.rmSync(TMP, { recursive: true, force: true });
