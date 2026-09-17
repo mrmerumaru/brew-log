@@ -256,6 +256,25 @@ catches render, lifecycle and constructor errors only; event handlers and async
 callbacks still need their own try/catch, which is why `handleSave` and the
 share flow have theirs.
 
+Photos are **resized before upload** by [src/image.js](src/image.js) — 2000px
+longest edge, JPEG quality 0.82, landing around 400 KB instead of the 3–5 MB a
+phone produces. That is the difference between roughly 250 and 2,400 photos in
+Supabase's free 1 GB tier, and it was the system design's open question about
+image compression.
+
+Two details that matter more than they look. The decode passes
+`imageOrientation: "from-image"`, because re-encoding through a canvas drops the
+EXIF rotation flag and every portrait photo would otherwise be stored sideways;
+the `<img>` fallback is used in preference to a plain `createImageBitmap` call
+for the same reason. And if anything fails — an undecodable HEIC, a failed
+encode, or a result no smaller than the input — the original file is uploaded
+untouched, because losing a photo is worse than storing a large one. The stored
+extension follows what was actually encoded, so a resized PNG is saved as
+`.jpg` rather than mislabelled.
+
+Photos uploaded before this existed are still full size; re-saving those brews
+with the photo re-picked is the only way to shrink them.
+
 ## Not built yet
 
 - **Equipment is write-only.** Brewer brand, model, grinder, process and roast

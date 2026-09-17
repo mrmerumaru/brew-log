@@ -36,6 +36,7 @@ import {
   isObjectUrl,
 } from "./brew";
 import ShareSheet from "./ShareSheet";
+import { compressPhoto } from "./image";
 
 const DEFAULTS = {
   drink: "",
@@ -515,15 +516,27 @@ export default function BrewForm({
       }
 
       const verb = isEditing ? "Changes saved" : "Brew saved";
+      // Hoisted so the share sheet can reuse the blob that was actually
+      // uploaded, rather than re-encoding the original.
+      let uploaded = null;
 
       if (photoFile) {
-        const path = `${user.id}/${row.id}.${fileExtension(photoFile)}`;
+        // Resize before upload — originals are 3-5 MB and would fill the free
+        // storage tier within a couple of hundred photos. Always returns
+        // something uploadable, falling back to the original file if it can't
+        // be re-encoded, so a photo is never lost to a failed compression.
+        uploaded = await compressPhoto(photoFile, fileExtension(photoFile));
+        console.info("Photo upload:", uploaded.note ?? "prepared");
+
+        // The extension has to follow what was actually encoded: a resized PNG
+        // leaves here as a JPEG, and storing it as .png would mislabel it.
+        const path = `${user.id}/${row.id}.${uploaded.ext}`;
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
           // upsert so replacing a photo on an existing brew overwrites cleanly
           // instead of failing on a name that already exists.
-          .upload(path, photoFile, {
-            contentType: photoFile.type || undefined,
+          .upload(path, uploaded.blob, {
+            contentType: uploaded.contentType,
             upsert: true,
           });
 
@@ -565,7 +578,7 @@ export default function BrewForm({
 
       // Captured before resetForm clears the fields, so Share can still act on
       // this brew once the form is blank again.
-      setLastSaved({ row, photoBlob: photoFile });
+      setLastSaved({ row, photoBlob: uploaded?.blob ?? photoFile });
       setSaved(true);
       resetAfterSave(row);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
