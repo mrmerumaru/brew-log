@@ -92,9 +92,23 @@ Sign-in is **Google only**. Magic links were removed from the UI once they
 stopped being used — Supabase's built-in email sender allows only a couple of
 messages an hour, which made them unreliable for anyone but the first user. Email
 OTP is still enabled on the Supabase project, so restoring a fallback is a UI
-change with no configuration to redo. Because Google is now the only route in,
-the OAuth consent screen needs to be **published** rather than left in Testing
-mode, or only accounts added as test users can sign in.
+change with no configuration to redo.
+
+The Google OAuth consent screen is deliberately left in **Testing** mode, which
+admits up to 100 accounts added under **Audience → Test users** in Google Cloud
+Console. Adding someone there is the only step needed to let them in.
+
+Publishing was considered and rejected: it requires a homepage URL, a privacy
+policy URL, and an authorized domain, and Google reduces
+`brew-log-xi.vercel.app` to the registrable domain `vercel.app` — which isn't
+ours and can't be verified in Search Console. Publishing therefore means buying
+a custom domain, which isn't worth it while the audience is a handful of people.
+Revisit if this ever needs to be open to anyone with the link.
+
+Testing mode has two consequences: new users click through an "unverified app"
+notice once, and Google expires Testing refresh tokens after 7 days. The second
+matters little here because Supabase issues its own session after sign-in, so
+the practical effect is occasionally signing in again.
 
 Presets are handled without the separate `beans`/`equipment` tables the system
 design anticipated: a new brew inherits method, equipment, beans and parameters
