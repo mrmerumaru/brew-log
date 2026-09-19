@@ -70,15 +70,24 @@ environment variables from step 4, under **Environment Variables**. Every later
 
 ```
 src/
-  App.jsx            session check, Log/History tabs, sign out
+  main.jsx           entry point; mounts the app and registers the service worker
+  App.jsx            session check, Log/History tabs, DEV badge, sign out
   ErrorBoundary.jsx  catches render errors so a crash isn't a blank page
   Login.jsx          Google sign in
   BrewForm.jsx       the brew entry form; saves to Supabase + uploads the photo
   BrewHistory.jsx    past brews, newest first, with signed photo URLs
+  ShareSheet.jsx     share dialog: aspect choice, live preview, pan and zoom
+  shareCard.js       paints the card on a canvas and hands it to the OS
+  brew.js            pure helpers — times, ratios, blends, pours, suggestions
+  image.js           resizes photos before upload, honouring EXIF orientation
   supabaseClient.js  the shared Supabase connection
   tokens.js          colors, fonts, and the option lists (methods, flavors, …)
-supabase/schema.sql  table, RLS policies, storage policies
+  index.css          Tailwind import, safe-area insets for the installed app
+public/              PWA manifest, service worker, generated icons
+scripts/             make-icons.mjs, which builds the icons from image/logo.jpeg
+supabase/            schema.sql plus the numbered migrations, applied in order
 docs/                PRD, system design, implementation guides, original mockup
+image/logo.jpeg      the source artwork the app icons are generated from
 ```
 
 ## Status
