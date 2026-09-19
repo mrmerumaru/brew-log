@@ -6,6 +6,12 @@ import BrewHistory from "./BrewHistory";
 import { TOKENS, SANS, MONO } from "./tokens";
 import { suggestionsFrom } from "./brew";
 
+// The production deployment sets VITE_APP_ENV=production in Vercel; nothing
+// else does, so previews and local dev show the badge. Defaulting to "not
+// production" means a missing variable shows a badge that shouldn't be there —
+// visible and easily fixed — rather than hiding one that should be.
+const IS_PRODUCTION = import.meta.env.VITE_APP_ENV === "production";
+
 // Columns the form needs for carry-forward and autocomplete. Deliberately not
 // `*` — notes and photo_path aren't used here and would just add weight.
 const SETUP_COLUMNS =
@@ -120,14 +126,32 @@ export default function App() {
             onClick={() => (editing ? finishEdit() : setTab("history"))}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => supabase.auth.signOut()}
-          className="text-[10px] uppercase tracking-[0.1em] pb-2"
-          style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-3 pb-2">
+          {/* Both environments point at the same database and look identical,
+              so the only way to tell them apart is to say so. */}
+          {!IS_PRODUCTION && (
+            <span
+              className="px-1.5 py-0.5 rounded-sm text-[9px] uppercase tracking-[0.1em]"
+              style={{
+                fontFamily: MONO,
+                fontWeight: 600,
+                color: TOKENS.card,
+                background: TOKENS.amber,
+              }}
+              title="Not the version your friends use"
+            >
+              Dev
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="text-[10px] uppercase tracking-[0.1em]"
+            style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       {tab === "log" ? (
