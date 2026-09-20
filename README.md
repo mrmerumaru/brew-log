@@ -61,10 +61,45 @@ click the link it sends you.
 
 ## Deploying
 
-Push to a private GitHub repo, then import it at [vercel.com](https://vercel.com).
-Vercel auto-detects Vite — the only thing you must add manually is the two
-environment variables from step 4, under **Environment Variables**. Every later
-`git push` redeploys automatically.
+Two environments, both on Vercel, both pointing at the **same Supabase project**:
+
+| Branch | URL | Who uses it |
+|---|---|---|
+| `main` | https://brew-log-xi.vercel.app | the people you've shared it with |
+| `dev` | https://brew-log-git-dev-brew-log1.vercel.app | you, while building |
+
+Work on `dev`, test at the dev URL, then release:
+
+```bash
+git checkout main && git merge dev && git push
+```
+
+The dev build shows an amber **DEV** chip beside Sign out. It appears unless
+`VITE_APP_ENV=production`, which only the Production environment sets — so a
+missing variable shows a badge that shouldn't be there rather than hiding one
+that should. Vite inlines `VITE_*` at build time, so changing it requires a
+redeploy, not just a save.
+
+Use the `-git-dev-` alias above, never a deployment URL like
+`brew-6yryu0gow-…` — those carry a build hash and change on every push, so
+anything registered against one breaks at the next deploy. Both the alias and
+production need to be listed in **Supabase → Authentication → URL
+Configuration** and as an authorized JavaScript origin in Google Cloud; the
+OAuth *redirect* URI points at Supabase and never changes.
+
+Preview deployments sit behind Vercel Authentication, so the dev URL redirects
+to a Vercel login unless you're signed in — including on a phone. Turn it off
+under **Settings → Deployment Protection** if you want someone else to test a
+branch before release.
+
+### What the shared database means
+
+A schema change hits the live app the moment the migration runs, so migrations
+stay **additive** — every one so far is `add column if not exists`, which
+production safely ignores until its code knows about it. Test brews are already
+invisible to other people through RLS, so the shared database costs nothing
+there. The day a `drop` or a rename is genuinely needed, split dev onto its own
+Supabase project first.
 
 ## Project layout
 
