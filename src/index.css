@@ -25,3 +25,35 @@ body {
 body {
   background: #f3f1ec;
 }
+
+/* Form steps slide in from the side they came from. Only one step is mounted
+   at a time, so this runs on mount — React's `key` on the step is what
+   restarts it. Short enough not to sit between you and the next field. */
+@keyframes step-in-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes step-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+.step-in-fwd {
+  animation: step-in-fwd 0.2s ease-out;
+}
+
+.step-in-back {
+  animation: step-in-back 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-in-fwd,
+  .step-in-back {
+    animation: none;
+  }
+}

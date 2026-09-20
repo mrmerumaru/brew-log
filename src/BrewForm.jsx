@@ -1,5 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect, useId } from "react";
-import { Camera, Share2, Check, Coffee, Loader2, X } from "lucide-react";
+import {
+  Camera,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Loader2,
+  Share2,
+  X,
+} from "lucide-react";
 import { supabase } from "./supabaseClient";
 import {
   TOKENS,
@@ -123,19 +132,17 @@ function carriedForwardFrom(brew) {
   };
 }
 
-function StepLabel({ n, title, done }) {
+function StepLabel({ title, done }) {
   return (
     <div className="flex items-center gap-3 mb-4">
       <span
-        className="flex items-center justify-center w-7 h-7 rounded-full text-[11px] shrink-0"
+        className="flex items-center justify-center w-6 h-6 rounded-full shrink-0"
         style={{
-          fontFamily: MONO,
           background: done ? TOKENS.green : "transparent",
-          color: done ? TOKENS.card : TOKENS.inkFaint,
           border: `1px solid ${done ? TOKENS.green : TOKENS.rule}`,
         }}
       >
-        {done ? <Check size={13} strokeWidth={2.5} /> : String(n).padStart(2, "0")}
+        {done && <Check size={12} strokeWidth={2.5} color={TOKENS.card} />}
       </span>
       <h3
         className="text-[13px] tracking-[0.12em] uppercase"
@@ -143,6 +150,48 @@ function StepLabel({ n, title, done }) {
       >
         {title}
       </h3>
+    </div>
+  );
+}
+
+const STEPS = ["Drink", "Beans", "Equipment", "Brew", "Taste"];
+
+// Tappable, so editing one field on a saved brew doesn't mean paging through
+// the whole form to reach it.
+function StepNav({ step, onGo }) {
+  return (
+    <div className="px-6 pt-5 flex items-center gap-2">
+      {STEPS.map((title, i) => {
+        const active = i === step;
+        return (
+          <button
+            key={title}
+            type="button"
+            onClick={() => onGo(i)}
+            aria-label={`Step ${i + 1}: ${title}`}
+            aria-current={active ? "step" : undefined}
+            className="flex-1 flex flex-col items-center gap-1.5 pb-1"
+          >
+            <span
+              className="w-full"
+              style={{
+                height: 2,
+                background: i <= step ? TOKENS.green : TOKENS.rule,
+              }}
+            />
+            <span
+              className="text-[9px] uppercase tracking-[0.08em] truncate w-full text-center"
+              style={{
+                fontFamily: MONO,
+                fontWeight: active ? 700 : 400,
+                color: active ? TOKENS.green : TOKENS.inkFaint,
+              }}
+            >
+              {title}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -324,6 +373,18 @@ export default function BrewForm({
   // buttons are hidden at that point.
   const removeComponent = (index) =>
     setComponents((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== index)));
+
+  // Which page of the form is showing. `direction` only drives the slide
+  // animation — forwards enters from the right, back from the left.
+  const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState(1);
+
+  const goToStep = (next) => {
+    const target = Math.max(0, Math.min(STEPS.length - 1, next));
+    if (target === step) return;
+    setDirection(target > step ? 1 : -1);
+    setStep(target);
+  };
 
   const isOtherMethod = methodChoice === METHOD_OTHER;
   // What actually gets saved. Falls back to "Other" so picking the chip and
@@ -655,602 +716,657 @@ export default function BrewForm({
         </div>
       )}
 
-      <div className="px-6 py-6">
-        {/* 01 Drink */}
-        <StepLabel n={1} title="Drink" done={!!drink} />
-        <Field
-          label="What did you make?"
-          value={drink}
-          onChange={setDrink}
-          placeholder="Iced Latte"
-          suggestions={drinkSuggestions}
-        />
+      <StepNav step={step} onGo={goToStep} />
 
-        <Divider />
-
-        {/* 02 Method */}
-        <StepLabel n={2} title="Method" done={!!method} />
-        <div className="flex flex-wrap gap-2">
-          {METHODS.map((m) => (
-            <Chip
-              key={m}
-              label={m}
-              active={methodChoice === m}
-              onClick={() => setMethodChoice(m)}
-            />
-          ))}
-          {/* Rendered separately, not part of METHODS — "Other" is an
-              affordance, never a stored value. */}
-          <Chip
-            label={METHOD_OTHER}
-            active={isOtherMethod}
-            onClick={() => setMethodChoice(METHOD_OTHER)}
-          />
-        </div>
-
-        {isOtherMethod && (
-          <div className="mt-4">
-            <Field
-              label="Which method?"
-              value={customMethod}
-              onChange={setCustomMethod}
-              placeholder="Siphon"
-              suggestions={customMethodSuggestions}
-            />
-          </div>
-        )}
-
-        <Divider />
-
-        {/* 03 Equipment */}
-        <StepLabel n={3} title="Equipment" done={!!machineBrand || !!grinder} />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Field
-            label="Brewer brand"
-            value={machineBrand}
-            onChange={setMachineBrand}
-            placeholder="Hario"
-            suggestions={suggestions.machineBrand}
-          />
-          <Field
-            label="Brewer model"
-            value={machineModel}
-            onChange={setMachineModel}
-            placeholder="V60-02"
-            suggestions={suggestions.machineModel}
-          />
-          <Field
-            label="Grinder"
-            value={grinder}
-            onChange={setGrinder}
-            placeholder="Comandante C40"
-            suggestions={suggestions.grinder}
-          />
-        </div>
-
-        <Divider />
-
-        {/* 04 Beans */}
-        <StepLabel n={4} title="Beans" done={isBlend ? blendNamed : !!beanName} />
-
-        {/* Single origin vs blend leads the section, since it decides which
-            fields follow. Tapping the active chip clears it, so a bag you're
-            unsure about stays unrecorded rather than being guessed. */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {BEAN_TYPES.map((t) => (
-            <Chip
-              key={t}
-              label={t}
-              active={beanType === t}
-              onClick={() => setBeanType(beanType === t ? "" : t)}
-            />
-          ))}
-        </div>
-
-        {isBlend ? (
+      {/* One step at a time. Every field is controlled by this component,
+          so unmounting a step keeps its values — and remounting is what
+          replays the slide animation. */}
+      <div key={step} className={direction >= 0 ? "step-in-fwd" : "step-in-back"}>
+        <div className="px-6 py-6">
+        {step === 0 && (
           <>
-            {/* The roastery covers the whole bag — a blend is sold as one bag
-                by one roaster — so it sits above the per-bean rows. */}
-            <div className="mb-5">
-              <Field
-                label="Roastery"
-                value={beanName}
-                onChange={setBeanName}
-                placeholder="Elephant Grounds"
-                suggestions={suggestions.beanName}
+  {/* 01 Drink */}
+          <StepLabel title="Drink" done={!!drink} />
+          <Field
+            label="What did you make?"
+            value={drink}
+            onChange={setDrink}
+            placeholder="Iced Latte"
+            suggestions={drinkSuggestions}
+          />
+          <Divider />
+
+  {/* 02 Method */}
+          <StepLabel title="Method" done={!!method} />
+          <div className="flex flex-wrap gap-2">
+            {METHODS.map((m) => (
+              <Chip
+                key={m}
+                label={m}
+                active={methodChoice === m}
+                onClick={() => setMethodChoice(m)}
               />
-            </div>
-
-            {components.map((c, i) => (
-              <div
-                key={i}
-                className="mb-4 pb-4"
-                style={
-                  i < components.length - 1 ? { borderBottom: `1px dashed ${TOKENS.rule}` } : undefined
-                }
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 9,
-                      color: TOKENS.inkFaint,
-                      letterSpacing: "0.1em",
-                    }}
-                  >
-                    BEAN {i + 1}
-                  </span>
-                  {components.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removeComponent(i)}
-                      aria-label={`Remove bean ${i + 1}`}
-                      style={{ color: TOKENS.rule }}
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                  <Field
-                    label="Origin"
-                    value={c.origin}
-                    onChange={(v) => updateComponent(i, "origin", v)}
-                    placeholder="Brazil"
-                    suggestions={suggestions.origin}
-                  />
-                  <Field
-                    label="Share"
-                    value={c.percent}
-                    onChange={(v) => updateComponent(i, "percent", v)}
-                    placeholder="50"
-                    mono
-                    inputMode="decimal"
-                    suffix="%"
-                  />
-                  {/* A specific lot or varietal, if the bag names one. Shown on
-                      the share card only when this component has no origin. */}
-                  <Field
-                    label="Lot / bean"
-                    value={c.name}
-                    onChange={(v) => updateComponent(i, "name", v)}
-                    placeholder="Optional"
-                  />
-                  {/* A datalist rather than chips: process repeats per bean, and
-                      four chip rows per component would swamp the form. */}
-                  <Field
-                    label="Process"
-                    value={c.process}
-                    onChange={(v) => updateComponent(i, "process", v)}
-                    placeholder="Natural"
-                    suggestions={PROCESSES}
-                  />
-                </div>
-              </div>
             ))}
-
-            <div className="flex items-center justify-between mb-5">
-              {components.length < MAX_BLEND_COMPONENTS ? (
-                <button
-                  type="button"
-                  onClick={addComponent}
-                  className="text-[10px] uppercase tracking-[0.08em]"
-                  style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
-                >
-                  + Add bean
-                </button>
-              ) : (
-                <span />
-              )}
-              {/* Advisory only — 50/50 approximations are normal and shouldn't
-                  block a save. */}
-              <span
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 10,
-                  letterSpacing: "0.08em",
-                  color: blendTotal === 100 ? TOKENS.green : TOKENS.inkFaint,
-                }}
-              >
-                TOTAL {blendTotal}%
-                {blendTotal !== 100 && blendTotal > 0 ? " ✳" : ""}
-              </span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
-              <Field
-                label="Name / roaster"
-                value={beanName}
-                onChange={setBeanName}
-                placeholder="Tim Wendelboe"
-                suggestions={suggestions.beanName}
-              />
-              <Field
-                label="Origin"
-                value={origin}
-                onChange={setOrigin}
-                placeholder="Ethiopia"
-                suggestions={suggestions.origin}
-              />
-            </div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {PROCESSES.map((p) => (
-                <Chip key={p} label={p} active={process === p} onClick={() => setProcess(p)} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Roast level and date apply to the bag either way — a blend is
-            roasted as one. */}
-        <div className="grid grid-cols-2 gap-x-4 mb-4">
-          <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {ROASTS.map((r) => (
-            <Chip key={r} label={r} active={roast === r} onClick={() => setRoast(r)} />
-          ))}
-        </div>
-
-        <Divider />
-
-        {/* 05 Milk — optional; a long black just leaves this blank */}
-        <StepLabel n={5} title="Milk" done={!!milkBrand || !!milkType} />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Field
-            label="Brand"
-            value={milkBrand}
-            onChange={setMilkBrand}
-            placeholder="Greenfields"
-            suggestions={suggestions.milkBrand}
-          />
-          <Field
-            label="Kind"
-            value={milkType}
-            onChange={setMilkType}
-            placeholder="Fresh Milk"
-            suggestions={milkTypeSuggestions}
-          />
-        </div>
-
-        <Divider />
-
-        {/* 06 Parameters */}
-        <StepLabel n={6} title="Parameters" done={!!dose && !!water} />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <Field
-            label="Dose"
-            value={dose}
-            onChange={setDose}
-            mono
-            suffix="g"
-            inputMode="decimal"
-          />
-          <Field
-            label="Water"
-            value={water}
-            onChange={setWater}
-            mono
-            suffix="g"
-            inputMode="decimal"
-          />
-          <Field
-            label="Temp"
-            value={temp}
-            onChange={setTemp}
-            mono
-            suffix="°C"
-            inputMode="decimal"
-          />
-          {/* Two integer boxes instead of one "m:ss" field — no colon to reach
-              for, and seconds over 59 roll up on save. */}
-          <div className="grid grid-cols-2 gap-x-3">
-            <Field
-              label="Time"
-              value={timeMin}
-              onChange={setTimeMin}
-              mono
-              suffix="min"
-              inputMode="numeric"
-              placeholder="2"
-            />
-            <Field
-              // Shares the "Time" label with the box beside it.
-              label=""
-              ariaLabel="Brew time seconds"
-              value={timeSec}
-              onChange={setTimeSec}
-              mono
-              suffix="sec"
-              inputMode="numeric"
-              placeholder="45"
+            {/* Rendered separately, not part of METHODS — "Other" is an
+                affordance, never a stored value. */}
+            <Chip
+              label={METHOD_OTHER}
+              active={isOtherMethod}
+              onClick={() => setMethodChoice(METHOD_OTHER)}
             />
           </div>
 
-          {/* Grind size and its unit stay side by side: the number is
-              meaningless without knowing whether it counts clicks, dial
-              numbers or microns. */}
-          <Field
-            label="Grind size"
-            value={grindSize}
-            onChange={setGrindSize}
-            placeholder="18"
-            mono
-            inputMode="decimal"
-          />
-          <Field
-            label="Unit"
-            value={grindUnit}
-            onChange={setGrindUnit}
-            placeholder="clicks"
-            suggestions={grindUnitSuggestions}
-          />
-        </div>
-
-        {/* Pour schedule — pourover only. A pourover is several pours, and the
-            single Water/Time pair above describes the brew as a whole. */}
-        {isPourover && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-1">
-              <span
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 10,
-                  color: TOKENS.inkFaint,
-                  letterSpacing: "0.1em",
-                }}
-              >
-                POURS
-              </span>
-              {poursWater > 0 && (
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 10,
-                    letterSpacing: "0.08em",
-                    // Advisory only: the pours should add up to the water above,
-                    // but a rough log is better than a blocked save.
-                    color: num(water) === poursWater ? TOKENS.green : TOKENS.inkFaint,
-                  }}
-                >
-                  {poursWater}g TOTAL
-                  {num(water) != null && num(water) !== poursWater ? " \u2733" : ""}
-                </span>
-              )}
+          {isOtherMethod && (
+            <div className="mt-4">
+              <Field
+                label="Which method?"
+                value={customMethod}
+                onChange={setCustomMethod}
+                placeholder="Siphon"
+                suggestions={customMethodSuggestions}
+              />
             </div>
+          )}
+          </>
+        )}
 
-            {/* Pour 1 is expected but not enforced — the save goes through
-                either way, since a partial log beats an abandoned one. */}
-            {num(pours[0]?.water) == null && (
-              <p className="text-[12px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.amber }}>
-                Pour 1 has no water recorded — this brew won't be reproducible.
-              </p>
-            )}
+        {step === 1 && (
+          <>
+  {/* 04 Beans */}
+          <StepLabel title="Beans" done={isBlend ? blendNamed : !!beanName} />
 
-            {pours.map((p, i) => (
-              <div
-                key={i}
-                className="pt-3 mt-3"
-                style={{ borderTop: `1px dashed ${TOKENS.rule}` }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span
-                    style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
-                  >
-                    POUR {i + 1}
-                  </span>
-                  <span className="flex items-center gap-3">
+          {/* Single origin vs blend leads the section, since it decides which
+              fields follow. Tapping the active chip clears it, so a bag you're
+              unsure about stays unrecorded rather than being guessed. */}
+          <div className="flex flex-wrap gap-2 mb-5">
+            {BEAN_TYPES.map((t) => (
+              <Chip
+                key={t}
+                label={t}
+                active={beanType === t}
+                onClick={() => setBeanType(beanType === t ? "" : t)}
+              />
+            ))}
+          </div>
+
+          {isBlend ? (
+            <>
+              {/* The roastery covers the whole bag — a blend is sold as one bag
+                  by one roaster — so it sits above the per-bean rows. */}
+              <div className="mb-5">
+                <Field
+                  label="Roastery"
+                  value={beanName}
+                  onChange={setBeanName}
+                  placeholder="Elephant Grounds"
+                  suggestions={suggestions.beanName}
+                />
+              </div>
+
+              {components.map((c, i) => (
+                <div
+                  key={i}
+                  className="mb-4 pb-4"
+                  style={
+                    i < components.length - 1 ? { borderBottom: `1px dashed ${TOKENS.rule}` } : undefined
+                  }
+                >
+                  <div className="flex items-center justify-between mb-3">
                     <span
-                      style={{ fontFamily: MONO, fontSize: 11, color: TOKENS.ink }}
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: 9,
+                        color: TOKENS.inkFaint,
+                        letterSpacing: "0.1em",
+                      }}
                     >
-                      {pourRunningTotals[i] > 0 ? `${pourRunningTotals[i]}g` : ""}
+                      BEAN {i + 1}
                     </span>
-                    {/* Pour 1 has no remove button: a pourover has at least one. */}
-                    {i > 0 && (
+                    {components.length > 2 && (
                       <button
                         type="button"
-                        onClick={() => removePour(i)}
-                        aria-label={`Remove pour ${i + 1}`}
+                        onClick={() => removeComponent(i)}
+                        aria-label={`Remove bean ${i + 1}`}
                         style={{ color: TOKENS.rule }}
                       >
                         <X size={13} />
                       </button>
                     )}
-                  </span>
-                </div>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-x-4">
-                  <div className="grid grid-cols-2 gap-x-2">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4">
                     <Field
-                      label="At"
-                      ariaLabel={`Pour ${i + 1} minutes`}
-                      value={p.timeMin}
-                      onChange={(v) => updatePour(i, "timeMin", v)}
-                      mono
-                      suffix="min"
-                      inputMode="numeric"
-                      placeholder="0"
+                      label="Origin"
+                      value={c.origin}
+                      onChange={(v) => updateComponent(i, "origin", v)}
+                      placeholder="Brazil"
+                      suggestions={suggestions.origin}
                     />
                     <Field
-                      // Shares the "At" label with the box beside it.
-                      label=""
-                      ariaLabel={`Pour ${i + 1} seconds`}
-                      value={p.timeSec}
-                      onChange={(v) => updatePour(i, "timeSec", v)}
+                      label="Share"
+                      value={c.percent}
+                      onChange={(v) => updateComponent(i, "percent", v)}
+                      placeholder="50"
                       mono
-                      suffix="sec"
-                      inputMode="numeric"
-                      placeholder="00"
+                      inputMode="decimal"
+                      suffix="%"
+                    />
+                    {/* A specific lot or varietal, if the bag names one. Shown on
+                        the share card only when this component has no origin. */}
+                    <Field
+                      label="Lot / bean"
+                      value={c.name}
+                      onChange={(v) => updateComponent(i, "name", v)}
+                      placeholder="Optional"
+                    />
+                    {/* A datalist rather than chips: process repeats per bean, and
+                        four chip rows per component would swamp the form. */}
+                    <Field
+                      label="Process"
+                      value={c.process}
+                      onChange={(v) => updateComponent(i, "process", v)}
+                      placeholder="Natural"
+                      suggestions={PROCESSES}
                     />
                   </div>
-                  <Field
-                    label="Water"
-                    value={p.water}
-                    onChange={(v) => updatePour(i, "water", v)}
-                    mono
-                    suffix="g"
-                    inputMode="decimal"
-                    placeholder="50"
-                  />
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {pours.length < MAX_POURS && (
-              <button
-                type="button"
-                onClick={addPour}
-                className="mt-4 text-[10px] uppercase tracking-[0.08em]"
-                style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
-              >
-                + Add pour
-              </button>
-            )}
+              <div className="flex items-center justify-between mb-5">
+                {components.length < MAX_BLEND_COMPONENTS ? (
+                  <button
+                    type="button"
+                    onClick={addComponent}
+                    className="text-[10px] uppercase tracking-[0.08em]"
+                    style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
+                  >
+                    + Add bean
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {/* Advisory only — 50/50 approximations are normal and shouldn't
+                    block a save. */}
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                    color: blendTotal === 100 ? TOKENS.green : TOKENS.inkFaint,
+                  }}
+                >
+                  TOTAL {blendTotal}%
+                  {blendTotal !== 100 && blendTotal > 0 ? " ✳" : ""}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
+                <Field
+                  label="Name / roaster"
+                  value={beanName}
+                  onChange={setBeanName}
+                  placeholder="Tim Wendelboe"
+                  suggestions={suggestions.beanName}
+                />
+                <Field
+                  label="Origin"
+                  value={origin}
+                  onChange={setOrigin}
+                  placeholder="Ethiopia"
+                  suggestions={suggestions.origin}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {PROCESSES.map((p) => (
+                  <Chip key={p} label={p} active={process === p} onClick={() => setProcess(p)} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Roast level and date apply to the bag either way — a blend is
+              roasted as one. */}
+          <div className="grid grid-cols-2 gap-x-4 mb-4">
+            <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
           </div>
+          <div className="flex flex-wrap gap-2">
+            {ROASTS.map((r) => (
+              <Chip key={r} label={r} active={roast === r} onClick={() => setRoast(r)} />
+            ))}
+          </div>
+          <Divider />
+
+  {/* 05 Milk — optional; a long black just leaves this blank */}
+          <StepLabel title="Milk" done={!!milkBrand || !!milkType} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <Field
+              label="Brand"
+              value={milkBrand}
+              onChange={setMilkBrand}
+              placeholder="Greenfields"
+              suggestions={suggestions.milkBrand}
+            />
+            <Field
+              label="Kind"
+              value={milkType}
+              onChange={setMilkType}
+              placeholder="Fresh Milk"
+              suggestions={milkTypeSuggestions}
+            />
+          </div>
+          </>
         )}
 
-        <Divider />
+        {step === 2 && (
+          <>
+  {/* 03 Equipment */}
+          <StepLabel title="Equipment" done={!!machineBrand || !!grinder} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <Field
+              label="Brewer brand"
+              value={machineBrand}
+              onChange={setMachineBrand}
+              placeholder="Hario"
+              suggestions={suggestions.machineBrand}
+            />
+            <Field
+              label="Brewer model"
+              value={machineModel}
+              onChange={setMachineModel}
+              placeholder="V60-02"
+              suggestions={suggestions.machineModel}
+            />
+            <Field
+              label="Grinder"
+              value={grinder}
+              onChange={setGrinder}
+              placeholder="Comandante C40"
+              suggestions={suggestions.grinder}
+            />
+          </div>
+          </>
+        )}
 
-        {/* 07 Tasting */}
-        <StepLabel n={7} title="Tasting Notes" done={flavors.length > 0} />
-        <div className="flex flex-wrap gap-2 mb-5">
-          {FLAVORS.map((f) => (
-            <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
-          ))}
-        </div>
+        {step === 3 && (
+          <>
+  {/* 06 Parameters */}
+          <StepLabel title="Parameters" done={!!dose && !!water} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <Field
+              label="Dose"
+              value={dose}
+              onChange={setDose}
+              mono
+              suffix="g"
+              inputMode="decimal"
+            />
+            <Field
+              label="Water"
+              value={water}
+              onChange={setWater}
+              mono
+              suffix="g"
+              inputMode="decimal"
+            />
+            <Field
+              label="Temp"
+              value={temp}
+              onChange={setTemp}
+              mono
+              suffix="°C"
+              inputMode="decimal"
+            />
+            {/* Two integer boxes instead of one "m:ss" field — no colon to reach
+                for, and seconds over 59 roll up on save. */}
+            <div className="grid grid-cols-2 gap-x-3">
+              <Field
+                label="Time"
+                value={timeMin}
+                onChange={setTimeMin}
+                mono
+                suffix="min"
+                inputMode="numeric"
+                placeholder="2"
+              />
+              <Field
+                // Shares the "Time" label with the box beside it.
+                label=""
+                ariaLabel="Brew time seconds"
+                value={timeSec}
+                onChange={setTimeSec}
+                mono
+                suffix="sec"
+                inputMode="numeric"
+                placeholder="45"
+              />
+            </div>
 
-        <div className="flex items-center justify-between mb-5">
-          <span
-            style={{
-              fontFamily: MONO,
-              fontSize: 10,
-              color: TOKENS.inkFaint,
-              letterSpacing: "0.1em",
-            }}
-          >
-            RATING
-          </span>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setRating(i)}
-                aria-label={`${i} of 5 cups`}
-                className="p-0.5"
-                style={{ color: i <= rating ? TOKENS.amber : TOKENS.rule }}
-              >
-                <Coffee size={18} strokeWidth={i <= rating ? 2.4 : 1.8} />
-              </button>
+            {/* Grind size and its unit stay side by side: the number is
+                meaningless without knowing whether it counts clicks, dial
+                numbers or microns. */}
+            <Field
+              label="Grind size"
+              value={grindSize}
+              onChange={setGrindSize}
+              placeholder="18"
+              mono
+              inputMode="decimal"
+            />
+            <Field
+              label="Unit"
+              value={grindUnit}
+              onChange={setGrindUnit}
+              placeholder="clicks"
+              suggestions={grindUnitSuggestions}
+            />
+          </div>
+
+          {/* Pour schedule — pourover only. A pourover is several pours, and the
+              single Water/Time pair above describes the brew as a whole. */}
+          {isPourover && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-1">
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 10,
+                    color: TOKENS.inkFaint,
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  POURS
+                </span>
+                {poursWater > 0 && (
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: 10,
+                      letterSpacing: "0.08em",
+                      // Advisory only: the pours should add up to the water above,
+                      // but a rough log is better than a blocked save.
+                      color: num(water) === poursWater ? TOKENS.green : TOKENS.inkFaint,
+                    }}
+                  >
+                    {poursWater}g TOTAL
+                    {num(water) != null && num(water) !== poursWater ? " \u2733" : ""}
+                  </span>
+                )}
+              </div>
+
+              {/* Pour 1 is expected but not enforced — the save goes through
+                  either way, since a partial log beats an abandoned one. */}
+              {num(pours[0]?.water) == null && (
+                <p className="text-[12px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.amber }}>
+                  Pour 1 has no water recorded — this brew won't be reproducible.
+                </p>
+              )}
+
+              {pours.map((p, i) => (
+                <div
+                  key={i}
+                  className="pt-3 mt-3"
+                  style={{ borderTop: `1px dashed ${TOKENS.rule}` }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                    >
+                      POUR {i + 1}
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span
+                        style={{ fontFamily: MONO, fontSize: 11, color: TOKENS.ink }}
+                      >
+                        {pourRunningTotals[i] > 0 ? `${pourRunningTotals[i]}g` : ""}
+                      </span>
+                      {/* Pour 1 has no remove button: a pourover has at least one. */}
+                      {i > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => removePour(i)}
+                          aria-label={`Remove pour ${i + 1}`}
+                          style={{ color: TOKENS.rule }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <div className="grid grid-cols-2 gap-x-2">
+                      <Field
+                        label="At"
+                        ariaLabel={`Pour ${i + 1} minutes`}
+                        value={p.timeMin}
+                        onChange={(v) => updatePour(i, "timeMin", v)}
+                        mono
+                        suffix="min"
+                        inputMode="numeric"
+                        placeholder="0"
+                      />
+                      <Field
+                        // Shares the "At" label with the box beside it.
+                        label=""
+                        ariaLabel={`Pour ${i + 1} seconds`}
+                        value={p.timeSec}
+                        onChange={(v) => updatePour(i, "timeSec", v)}
+                        mono
+                        suffix="sec"
+                        inputMode="numeric"
+                        placeholder="00"
+                      />
+                    </div>
+                    <Field
+                      label="Water"
+                      value={p.water}
+                      onChange={(v) => updatePour(i, "water", v)}
+                      mono
+                      suffix="g"
+                      inputMode="decimal"
+                      placeholder="50"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {pours.length < MAX_POURS && (
+                <button
+                  type="button"
+                  onClick={addPour}
+                  className="mt-4 text-[10px] uppercase tracking-[0.08em]"
+                  style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
+                >
+                  + Add pour
+                </button>
+              )}
+            </div>
+          )}
+          </>
+        )}
+
+        {step === 4 && (
+          <>
+  {/* 07 Tasting */}
+          <StepLabel title="Tasting Notes" done={flavors.length > 0} />
+          <div className="flex flex-wrap gap-2 mb-5">
+            {FLAVORS.map((f) => (
+              <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
             ))}
           </div>
-        </div>
 
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Anything else worth remembering about this cup…"
-          rows={2}
-          className="w-full bg-transparent outline-none resize-none text-[14px] pb-1.5"
-          style={{
-            fontFamily: SERIF,
-            fontStyle: "italic",
-            color: TOKENS.ink,
-            borderBottom: `1px solid ${TOKENS.rule}`,
-          }}
-        />
-
-        <Divider />
-
-        {/* Photo + actions */}
-        <div className="flex items-center gap-3">
-          <label
-            className="flex items-center justify-center rounded-sm cursor-pointer overflow-hidden shrink-0"
-            style={{
-              width: 64,
-              height: 64,
-              border: `1px dashed ${TOKENS.rule}`,
-              background: photo ? "transparent" : TOKENS.paper,
-            }}
-          >
-            {photo ? (
-              <img src={photo} alt="Brew" className="w-full h-full object-cover" />
-            ) : (
-              <Camera size={18} style={{ color: TOKENS.inkFaint }} />
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhoto}
-              className="hidden"
-            />
-          </label>
-
-          <div className="flex-1 flex gap-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1 py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2 transition-opacity"
+          <div className="flex items-center justify-between mb-5">
+            <span
               style={{
-                fontFamily: SANS,
-                fontWeight: 700,
-                background: TOKENS.green,
-                color: TOKENS.card,
-                opacity: saving ? 0.6 : 1,
-                cursor: saving ? "default" : "pointer",
+                fontFamily: MONO,
+                fontSize: 10,
+                color: TOKENS.inkFaint,
+                letterSpacing: "0.1em",
               }}
             >
-              {saving && <Loader2 size={13} className="animate-spin" />}
-              {saving
-                ? "Saving…"
-                : saved
-                  ? "Saved ✓"
-                  : isEditing
-                    ? "Save Changes"
-                    : "Save Brew"}
-            </button>
-
-            {isEditing ? (
-              <button
-                type="button"
-                onClick={onExitEdit}
-                disabled={saving}
-                className="flex items-center justify-center w-11 rounded-sm shrink-0"
-                style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.inkFaint }}
-                aria-label="Cancel editing"
-                title="Cancel"
-              >
-                <X size={15} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSharing(true)}
-                disabled={!lastSaved}
-                className="flex items-center justify-center w-11 rounded-sm shrink-0"
-                style={{
-                  border: `1px solid ${TOKENS.rule}`,
-                  color: lastSaved ? TOKENS.ink : TOKENS.rule,
-                  cursor: lastSaved ? "pointer" : "default",
-                }}
-                aria-label="Share the brew you just saved"
-                title={
-                  lastSaved
-                    ? "Share the brew you just saved"
-                    : "Save a brew first, then share it"
-                }
-              >
-                <Share2 size={15} />
-              </button>
-            )}
+              RATING
+            </span>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setRating(i)}
+                  aria-label={`${i} of 5 cups`}
+                  className="p-0.5"
+                  style={{ color: i <= rating ? TOKENS.amber : TOKENS.rule }}
+                >
+                  <Coffee size={18} strokeWidth={i <= rating ? 2.4 : 1.8} />
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Anything else worth remembering about this cup…"
+            rows={2}
+            className="w-full bg-transparent outline-none resize-none text-[14px] pb-1.5"
+            style={{
+              fontFamily: SERIF,
+              fontStyle: "italic",
+              color: TOKENS.ink,
+              borderBottom: `1px solid ${TOKENS.rule}`,
+            }}
+          />
+          <Divider />
+
+  {/* Photo + actions */}
+          <div className="flex items-center gap-3">
+            <label
+              className="flex items-center justify-center rounded-sm cursor-pointer overflow-hidden shrink-0"
+              style={{
+                width: 64,
+                height: 64,
+                border: `1px dashed ${TOKENS.rule}`,
+                background: photo ? "transparent" : TOKENS.paper,
+              }}
+            >
+              {photo ? (
+                <img src={photo} alt="Brew" className="w-full h-full object-cover" />
+              ) : (
+                <Camera size={18} style={{ color: TOKENS.inkFaint }} />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhoto}
+                className="hidden"
+              />
+            </label>
+
+            <div className="flex-1 flex gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2 transition-opacity"
+                style={{
+                  fontFamily: SANS,
+                  fontWeight: 700,
+                  background: TOKENS.green,
+                  color: TOKENS.card,
+                  opacity: saving ? 0.6 : 1,
+                  cursor: saving ? "default" : "pointer",
+                }}
+              >
+                {saving && <Loader2 size={13} className="animate-spin" />}
+                {saving
+                  ? "Saving…"
+                  : saved
+                    ? "Saved ✓"
+                    : isEditing
+                      ? "Save Changes"
+                      : "Save Brew"}
+              </button>
+
+              {isEditing ? (
+                <button
+                  type="button"
+                  onClick={onExitEdit}
+                  disabled={saving}
+                  className="flex items-center justify-center w-11 rounded-sm shrink-0"
+                  style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.inkFaint }}
+                  aria-label="Cancel editing"
+                  title="Cancel"
+                >
+                  <X size={15} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSharing(true)}
+                  disabled={!lastSaved}
+                  className="flex items-center justify-center w-11 rounded-sm shrink-0"
+                  style={{
+                    border: `1px solid ${TOKENS.rule}`,
+                    color: lastSaved ? TOKENS.ink : TOKENS.rule,
+                    cursor: lastSaved ? "pointer" : "default",
+                  }}
+                  aria-label="Share the brew you just saved"
+                  title={
+                    lastSaved
+                      ? "Share the brew you just saved"
+                      : "Save a brew first, then share it"
+                  }
+                >
+                  <Share2 size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+          </>
+        )}
+        </div>
+      </div>
+
+      <div
+        className="px-6 py-4 flex items-center justify-between gap-3"
+        style={{ borderTop: `1px dashed ${TOKENS.rule}` }}
+      >
+        {step > 0 ? (
+          <button
+            type="button"
+            onClick={() => goToStep(step - 1)}
+            className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em]"
+            style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.inkFaint }}
+          >
+            <ChevronLeft size={14} />
+            Back
+          </button>
+        ) : (
+          <span />
+        )}
+
+        {/* No Next on the last page — Save lives there instead. */}
+        {step < STEPS.length - 1 && (
+          <button
+            type="button"
+            onClick={() => goToStep(step + 1)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-sm text-[11px] uppercase tracking-[0.08em]"
+            style={{
+              fontFamily: SANS,
+              fontWeight: 700,
+              background: TOKENS.green,
+              color: TOKENS.card,
+            }}
+          >
+            Next
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
+
+      <div className="px-6 pb-6">
         {error && (
           <p
             className="mt-4 text-[13px]"
