@@ -1,4 +1,4 @@
-// Generates the PWA icons in public/ from image/logo.jpeg.
+// Generates the PWA icons in public/ from the logos in image/.
 //
 // Run with `node scripts/make-icons.mjs` — only needed when the logo changes.
 // Uses macOS `sips`, which is built in, rather than adding an image dependency;
@@ -29,28 +29,34 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = path.join(ROOT, "image", "logo.jpeg");
 const OUT = path.join(ROOT, "public");
 const TMP = fs.mkdtempSync("/tmp/brewlog-icons-");
 
-// Measured from the source: offsetY, offsetX, side. The largest white-free
-// square is 1459 at (679, 21); this insets 5px further on each side because the
-// badge's outermost row carries a bright highlight that shows as a seam against
-// the flat padding. The interior is flat to within 4/255 from there inward.
-const CROP = { y: 26, x: 684, side: 1449 };
-// The flat interior colour, so padding is seamless. Sampled well inside the
-// edge — a sample taken at the very corner picks up that highlight instead.
-const BADGE = "262626";
+// Two logos: production is a gold mark on near-black, dev the inverse. Having
+// visibly different home-screen icons is the only way to tell the two installs
+// apart on a phone.
+//
+// crop is offsetY / offsetX / side, measured from each source rather than
+// eyeballed: it's the largest square containing no near-white pixel, inset a
+// further ~5px per side because each badge's outermost row carries a bright
+// highlight that shows as a seam against flat padding. badge is the flat
+// interior colour, sampled well inside that edge, so the padding is seamless.
+const LOGOS = [
+  {
+    src: "logo.jpeg",
+    prefix: "",
+    crop: { y: 26, x: 684, side: 1449 },
+    badge: "262626",
+  },
+  {
+    src: "logo-dev.jpeg",
+    prefix: "dev-",
+    crop: { y: 38, x: 678, side: 1457 },
+    badge: "bf984a",
+  },
+];
 
 const sips = (...args) => execFileSync("sips", args, { stdio: ["ignore", "ignore", "pipe"] });
-
-const badge = path.join(TMP, "badge.png");
-sips("-s", "format", "png", SRC, "--out", path.join(TMP, "full.png"));
-sips(
-  "--cropOffset", String(CROP.y), String(CROP.x),
-  "-c", String(CROP.side), String(CROP.side),
-  path.join(TMP, "full.png"), "--out", badge,
-);
 
 // [filename, size, inner] — inner is the badge's rendered width before padding.
 // 93% of the size keeps the artwork near the original 79%; the maskable icon
@@ -66,26 +72,39 @@ const ICONS = [
 
 fs.mkdirSync(OUT, { recursive: true });
 
-for (const [name, size, inner] of ICONS) {
-  const dest = path.join(OUT, name);
-  const scaled = path.join(TMP, `s-${name}`);
-  sips("--resampleHeightWidth", String(inner), String(inner), badge, "--out", scaled);
+for (const { src, prefix, crop, badge: badgeColor } of LOGOS) {
+  console.log(`\n${src}`);
+  const full = path.join(TMP, `${prefix}full.png`);
+  const badge = path.join(TMP, `${prefix}badge.png`);
 
-  if (inner === size) {
-    fs.copyFileSync(scaled, dest);
-  } else {
-    sips(
-      "--padToHeightWidth", String(size), String(size),
-      "--padColor", BADGE,
-      scaled, "--out", dest,
+  sips("-s", "format", "png", path.join(ROOT, "image", src), "--out", full);
+  sips(
+    "--cropOffset", String(crop.y), String(crop.x),
+    "-c", String(crop.side), String(crop.side),
+    full, "--out", badge,
+  );
+
+  for (const [name, size, inner] of ICONS) {
+    const dest = path.join(OUT, prefix + name);
+    const scaled = path.join(TMP, `s-${prefix}${name}`);
+    sips("--resampleHeightWidth", String(inner), String(inner), badge, "--out", scaled);
+
+    if (inner === size) {
+      fs.copyFileSync(scaled, dest);
+    } else {
+      sips(
+        "--padToHeightWidth", String(size), String(size),
+        "--padColor", badgeColor,
+        scaled, "--out", dest,
+      );
+    }
+
+    const bytes = fs.statSync(dest).size;
+    console.log(
+      `  ${(prefix + name).padEnd(28)} ${size}x${size}  mark at ` +
+        `${Math.round((inner / size) * 85)}% of width  ${(bytes / 1024).toFixed(1)} kB`,
     );
   }
-
-  const bytes = fs.statSync(dest).size;
-  console.log(
-    `${name.padEnd(24)} ${size}x${size}  mark at ${Math.round((inner / size) * 85)}% ` +
-      `of width  ${(bytes / 1024).toFixed(1)} kB`,
-  );
 }
 
 fs.rmSync(TMP, { recursive: true, force: true });

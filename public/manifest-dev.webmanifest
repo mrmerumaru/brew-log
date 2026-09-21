@@ -1,0 +1,21 @@
+{
+  "name": "Brew Log dev",
+  "short_name": "Brew dev",
+  "description": "Development build of Brew Log — not the version shared with others.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F1EC",
+  "theme_color": "#F3F1EC",
+  "icons": [
+    { "src": "/dev-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/dev-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/dev-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
