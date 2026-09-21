@@ -74,7 +74,8 @@ Work on `dev`, test at the dev URL, then release:
 git checkout main && git merge dev && git push
 ```
 
-The dev build shows an amber **DEV** chip beside Sign out. It appears unless
+The dev build installs as "Brew Log dev" with the inverted logo, and shows an
+amber **DEV** chip beside Sign out. It appears unless
 `VITE_APP_ENV=production`, which only the Production environment sets — so a
 missing variable shows a badge that shouldn't be there rather than hiding one
 that should. Vite inlines `VITE_*` at build time, so changing it requires a
@@ -119,10 +120,10 @@ src/
   tokens.js          colors, fonts, and the option lists (methods, flavors, …)
   index.css          Tailwind import, safe-area insets for the installed app
 public/              PWA manifest, service worker, generated icons
-scripts/             make-icons.mjs, which builds the icons from image/logo.jpeg
+scripts/             make-icons.mjs, which builds both icon sets from image/
 supabase/            schema.sql plus the numbered migrations, applied in order
 docs/                PRD, system design, implementation guides, original mockup
-image/logo.jpeg      the source artwork the app icons are generated from
+image/               logo.jpeg (production) and logo-dev.jpeg, the icon sources
 ```
 
 ## Status
