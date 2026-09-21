@@ -179,12 +179,18 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
           style={{ borderBottom: `1px solid ${TOKENS.rule}`, background: TOKENS.card }}
         >
           <span
-            className="text-[11px] uppercase tracking-[0.12em]"
+            className="text-[12px] uppercase tracking-[0.12em]"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
             Share
           </span>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ color: TOKENS.inkFaint }}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="bl-press bl-quiet"
+            style={{ color: TOKENS.inkFaint }}
+          >
             <X size={16} />
           </button>
         </div>
@@ -198,7 +204,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   key={key}
                   type="button"
                   onClick={() => setRatio(key)}
-                  className="flex-1 py-2 rounded-sm text-left px-3"
+                  className="bl-press bl-chip flex-1 py-2 rounded-sm text-left px-3"
                   style={{
                     border: `1px solid ${active ? TOKENS.green : TOKENS.rule}`,
                     background: active ? TOKENS.greenSoft : "transparent",
@@ -262,7 +268,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
               <div className="flex items-center gap-3 mb-1">
                 <span
                   className="shrink-0"
-                  style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                  style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
                 >
                   ZOOM
                 </span>
@@ -282,14 +288,14 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                 <button
                   type="button"
                   onClick={() => setTransform(DEFAULT_TRANSFORM)}
-                  className="shrink-0 text-[10px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet shrink-0 text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
                 >
                   Reset
                 </button>
               </div>
               <p
-                className="mb-4 text-[11px]"
+                className="mb-4 text-[12px]"
                 style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
               >
                 {canPan
@@ -310,7 +316,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             type="button"
             onClick={handleSend}
             disabled={busy}
-            className="w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2"
+            className="bl-press bl-solid w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -326,7 +332,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
 
           {error && (
             <p
-              className="mt-3 text-[13px]"
+              className="mt-3 text-[14px]"
               style={{ fontFamily: SERIF, color: TOKENS.red }}
               role="alert"
             >
@@ -335,7 +341,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
           )}
 
           {notice && (
-            <p className="mt-3 text-[13px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
+            <p className="mt-3 text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
               {notice}
             </p>
           )}

@@ -42,7 +42,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search beans, origin, roaster…"
-        className="w-full bg-transparent outline-none pb-1.5 text-[14px] mb-3"
+        className="bl-input w-full bg-transparent outline-none pb-1.5 text-[14px] mb-3"
         style={{
           fontFamily: SERIF,
           color: TOKENS.ink,
@@ -56,7 +56,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
             key={m}
             type="button"
             onClick={() => setMethod(method === m ? null : m)}
-            className="px-2.5 py-1 rounded-full text-[12px]"
+            className="bl-press bl-chip px-2.5 py-1 rounded-full text-[12px]"
             style={{
               fontFamily: SERIF,
               border: `1px solid ${method === m ? TOKENS.green : TOKENS.rule}`,
@@ -71,7 +71,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         <span className="flex items-center gap-1 ml-auto">
           <span
             className="mr-1"
-            style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+            style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
             MIN
           </span>
@@ -83,7 +83,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
               // back to "any rating" without hunting for the reset.
               onClick={() => setMinRating(minRating === i ? 0 : i)}
               aria-label={`At least ${i} cups`}
-              className="p-0.5"
+              className="bl-press p-0.5"
               style={{ color: i <= minRating ? TOKENS.amber : TOKENS.rule }}
             >
               <Coffee size={14} strokeWidth={i <= minRating ? 2.4 : 1.8} />
@@ -96,7 +96,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         <button
           type="button"
           onClick={onClear}
-          className="mt-3 text-[10px] uppercase tracking-[0.08em]"
+          className="bl-press bl-quiet mt-3 text-[10px] uppercase tracking-[0.08em]"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
         >
           Clear filters
@@ -111,11 +111,11 @@ function Meta({ label, value }) {
   return (
     <div>
       <div
-        style={{ fontFamily: MONO, fontSize: 9, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+        style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
       >
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 13, color: TOKENS.ink }}>{value}</div>
+      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.ink }}>{value}</div>
     </div>
   );
 }
@@ -182,7 +182,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
           </div>
 
           <p
-            className="text-[13px] mt-0.5 truncate"
+            className="text-[14px] mt-0.5 truncate"
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
           >
             {/* Method moves here once a drink is named, so it isn't lost. */}
@@ -215,7 +215,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               can't be reproduced from the totals alone. */}
           {pours && (
             <p className="text-[12px] mt-2" style={{ fontFamily: MONO, color: TOKENS.inkFaint }}>
-              <span style={{ letterSpacing: "0.1em", fontSize: 9 }}>POURS </span>
+              <span style={{ letterSpacing: "0.1em", fontSize: 10 }}>POURS </span>
               {pours}
             </p>
           )}
@@ -225,7 +225,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               {brew.flavor_tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 rounded-full text-[11px]"
+                  className="px-2 py-0.5 rounded-full text-[12px]"
                   style={{
                     fontFamily: SERIF,
                     background: TOKENS.greenSoft,
@@ -240,7 +240,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
 
           {brew.notes && (
             <p
-              className="text-[13px] mt-3"
+              className="text-[14px] mt-3"
               style={{ fontFamily: SERIF, fontStyle: "italic", color: TOKENS.ink }}
             >
               {brew.notes}
@@ -275,7 +275,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="text-[10px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
                 >
                   Cancel
@@ -283,7 +283,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                 <button
                   type="button"
                   onClick={() => onDelete(brew)}
-                  className="text-[10px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, fontWeight: 600, color: TOKENS.red }}
                 >
                   Delete
@@ -296,6 +296,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                   onClick={() => onShare(brew)}
                   disabled={sharing}
                   aria-label={`Share this ${brew.drink || brew.method || "brew"}`}
+                  className="bl-press bl-quiet"
                   title="Share brew"
                   style={{ color: TOKENS.inkFaint }}
                 >
@@ -309,6 +310,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                   type="button"
                   onClick={() => onEdit(brew, photoUrl)}
                   aria-label={`Edit this ${brew.drink || brew.method || "brew"}`}
+                  className="bl-press bl-quiet"
                   title="Edit brew"
                   style={{ color: TOKENS.inkFaint }}
                 >
@@ -318,6 +320,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                   type="button"
                   onClick={() => setConfirming(true)}
                   aria-label={`Delete this ${brew.drink || brew.method || "brew"}`}
+                  className="bl-press bl-danger"
                   title="Delete brew"
                   style={{ color: TOKENS.rule }}
                 >
@@ -507,7 +510,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
   if (error) {
     return (
-      <p className="py-16 text-center text-[13px]" style={{ fontFamily: SERIF, color: TOKENS.red }}>
+      <p className="py-16 text-center text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.red }}>
         {error}
       </p>
     );
@@ -553,7 +556,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
         <button
           type="button"
           onClick={load}
-          className="flex items-center gap-1.5 text-[10px] uppercase"
+          className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
         >
           <RefreshCw size={11} />
@@ -587,7 +590,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
       {deleteError && (
         <p
-          className="mt-4 text-[13px]"
+          className="mt-4 text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.red }}
           role="alert"
         >

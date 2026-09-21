@@ -26,6 +26,88 @@ body {
   background: #f3f1ec;
 }
 
+/* --- Interaction states -------------------------------------------------
+   Colours come from the custom properties applyTokens() sets from TOKENS, so
+   there's no second copy of the palette here. The fallbacks only matter if
+   that call ever fails.
+
+   Nothing in the app used to respond to hover, focus or press — every control
+   looked identical whether you were touching it or ignoring it, which is what
+   made a considered layout feel unfinished. */
+
+.bl-press {
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.08s ease;
+}
+
+.bl-press:active {
+  transform: translateY(1px);
+}
+
+/* Keyboard focus only. The inputs below handle their own focus, because a text
+   field should show it when clicked too, not just when tabbed to. */
+.bl-press:focus-visible,
+.bl-focus:focus-visible {
+  outline: 2px solid var(--green, #2f5233);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Underline thickens rather than changing border-width, which would shift the
+   text by a pixel every time you focused a field. */
+.bl-input {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.bl-input:hover {
+  border-color: var(--ink-faint, #6b6558);
+}
+
+.bl-input:focus {
+  border-color: var(--green, #2f5233);
+  box-shadow: 0 1px 0 0 var(--green, #2f5233);
+}
+
+.bl-chip:hover {
+  border-color: var(--ink-faint, #6b6558);
+  color: var(--ink, #201d1a);
+}
+
+/* Solid green buttons: Save, Next, Send. */
+.bl-solid:hover:not(:disabled) {
+  background: var(--green-deep, #26421f);
+}
+
+.bl-solid:disabled {
+  cursor: default;
+}
+
+/* Faint icon buttons and text links come forward on hover. */
+.bl-quiet:hover:not(:disabled) {
+  color: var(--ink, #201d1a);
+}
+
+.bl-danger:hover:not(:disabled) {
+  color: var(--red, #9b3b26);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bl-press,
+  .bl-input {
+    transition: none;
+  }
+
+  .bl-press:active {
+    transform: none;
+  }
+}
+
 /* Form steps slide in from the side they came from. Only one step is mounted
    at a time, so this runs on mount — React's `key` on the step is what
    restarts it. Short enough not to sit between you and the next field. */

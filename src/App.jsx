@@ -5,12 +5,7 @@ import BrewForm from "./BrewForm";
 import BrewHistory from "./BrewHistory";
 import { TOKENS, SANS, MONO } from "./tokens";
 import { suggestionsFrom } from "./brew";
-
-// The production deployment sets VITE_APP_ENV=production in Vercel; nothing
-// else does, so previews and local dev show the badge. Defaulting to "not
-// production" means a missing variable shows a badge that shouldn't be there —
-// visible and easily fixed — rather than hiding one that should be.
-const IS_PRODUCTION = import.meta.env.VITE_APP_ENV === "production";
+import { IS_PRODUCTION } from "./env";
 
 // Columns the form needs for carry-forward and autocomplete. Deliberately not
 // `*` — notes and photo_path aren't used here and would just add weight.
@@ -22,7 +17,7 @@ function Tab({ label, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-2 text-[11px] uppercase tracking-[0.1em]"
+      className="bl-press bl-quiet px-4 py-2 text-[12px] uppercase tracking-[0.1em]"
       style={{
         fontFamily: SANS,
         fontWeight: 700,
@@ -131,7 +126,7 @@ export default function App() {
               so the only way to tell them apart is to say so. */}
           {!IS_PRODUCTION && (
             <span
-              className="px-1.5 py-0.5 rounded-sm text-[9px] uppercase tracking-[0.1em]"
+              className="px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-[0.1em]"
               style={{
                 fontFamily: MONO,
                 fontWeight: 600,
@@ -146,7 +141,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => supabase.auth.signOut()}
-            className="text-[10px] uppercase tracking-[0.1em]"
+            className="bl-press bl-quiet text-[10px] uppercase tracking-[0.1em]"
             style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
           >
             Sign out

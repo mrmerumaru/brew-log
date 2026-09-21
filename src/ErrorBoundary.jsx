@@ -43,7 +43,7 @@ export default class ErrorBoundary extends React.Component {
           style={{ background: TOKENS.card, border: `1px solid ${TOKENS.rule}` }}
         >
           <h1
-            className="text-[15px] mb-4"
+            className="text-[16px] mb-4"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
             Something went wrong
@@ -74,7 +74,7 @@ export default class ErrorBoundary extends React.Component {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase"
+            className="bl-press bl-solid w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -94,7 +94,7 @@ export default class ErrorBoundary extends React.Component {
                 Where it happened
               </summary>
               <pre
-                className="mt-2 text-[11px] whitespace-pre-wrap"
+                className="mt-2 text-[12px] whitespace-pre-wrap"
                 style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
               >
                 {stack.trim()}

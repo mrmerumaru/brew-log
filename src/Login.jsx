@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Coffee, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, SERIF } from "./tokens";
+import { APP_ICON } from "./env";
 
 // Google's brand mark. Inline rather than a remote asset so it works offline
 // and can't be blocked.
@@ -65,9 +66,15 @@ export default function Login() {
       }}
     >
       <div className="flex items-center gap-2 mb-6">
-        <Coffee size={16} style={{ color: TOKENS.green }} strokeWidth={2} />
+        <img
+          src={APP_ICON}
+          alt=""
+          width={22}
+          height={22}
+          className="rounded-[5px] shrink-0"
+        />
         <span
-          className="text-[15px]"
+          className="text-[16px]"
           style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink, letterSpacing: "0.01em" }}
         >
           Brew Log
@@ -86,7 +93,7 @@ export default function Login() {
         type="button"
         onClick={handleGoogle}
         disabled={loading}
-        className="w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2.5"
+        className="bl-press bl-chip w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2.5"
         style={{
           fontFamily: SANS,
           fontWeight: 700,
@@ -103,7 +110,7 @@ export default function Login() {
 
       {error && (
         <p
-          className="mt-4 text-[13px]"
+          className="mt-4 text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.red }}
           role="alert"
         >

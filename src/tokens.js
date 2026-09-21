@@ -2,6 +2,15 @@
 // history list, and the login screen all read from one palette.
 // Fonts are loaded via <link> in index.html.
 
+// Type scale. Four steps, deliberately — the UI previously used seven sizes
+// between 9px and 15px, which reads as noise rather than hierarchy:
+//   10  mono uppercase micro-labels
+//   12  dense secondary values, small controls
+//   14  body: inputs, prose, section headings, chips
+//   16  titles
+// Sizes live in the markup as literals because Tailwind can't take a dynamic
+// class name; this comment is the scale's definition.
+
 export const TOKENS = {
   paper: "#F3F1EC",
   card: "#FBFAF7",
@@ -12,7 +21,23 @@ export const TOKENS = {
   greenSoft: "#E4EADF",
   amber: "#C77D2E",
   red: "#9B3B26",
+  // Hover shade for the solid green buttons.
+  greenDeep: "#26421F",
 };
+
+/**
+ * Publish the palette as CSS custom properties so stylesheets can drive
+ * hover/focus/pressed states without duplicating the hex values. TOKENS stays
+ * the single source of truth — the canvas share card needs them as JS anyway,
+ * and a second copy in CSS would drift.
+ *
+ * Called once from main.jsx before the first render.
+ */
+export function applyTokens(root = document.documentElement) {
+  for (const [name, value] of Object.entries(TOKENS)) {
+    root.style.setProperty(`--${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`, value);
+  }
+}
 
 export const SANS = "'Space Grotesk', sans-serif";
 export const MONO = "'IBM Plex Mono', monospace";

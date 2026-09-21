@@ -102,6 +102,29 @@ invisible to other people through RLS, so the shared database costs nothing
 there. The day a `drop` or a rename is genuinely needed, split dev onto its own
 Supabase project first.
 
+### Interaction and type
+
+Hover, focus and pressed states live in [src/index.css](src/index.css) as a
+handful of `bl-*` classes rather than inline styles, because inline styles
+can't express a pseudo-class. `applyTokens` in
+[src/tokens.js](src/tokens.js) publishes the palette as CSS custom properties
+at startup, so those rules use the same hex values as the canvas share card
+instead of a second copy that would drift.
+
+Focus deserves a note: every input had `outline-none` with nothing in its
+place, so keyboard users got no indication of where they were. Text fields now
+thicken their underline on focus — via `box-shadow`, not `border-width`, which
+would shift the text by a pixel — and buttons draw a green ring on
+`:focus-visible` only, so a mouse click doesn't leave one behind.
+
+The type scale is four sizes (10/12/14/16). It was seven between 9px and 15px,
+which is noise rather than hierarchy; the scale is documented at the top of
+tokens.js.
+
+The mark in the header and on the login screen is the real app icon, so it
+matches the home screen and differs between the two installs like everything
+else about them.
+
 ## Project layout
 
 ```
