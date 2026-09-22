@@ -133,24 +133,26 @@ function carriedForwardFrom(brew) {
   };
 }
 
-function StepLabel({ title, done }) {
+// A ruled band with a lettered mark, the way a printed form divides itself.
+// The letters run A-G in the order you page through, so they read as a
+// sequence rather than matching some other numbering.
+function StepLabel({ mark, title, done }) {
   return (
-    <div className="flex items-center gap-3 mb-4">
+    <div className="bl-band -mx-6 px-6 py-2.5 mb-5 flex items-center gap-3">
       <span
-        className="flex items-center justify-center w-6 h-6 rounded-full shrink-0"
-        style={{
-          background: done ? TOKENS.green : "transparent",
-          border: `1px solid ${done ? TOKENS.green : TOKENS.rule}`,
-        }}
+        className={`bl-mark${done ? " bl-mark-set" : ""} flex items-center justify-center w-5 h-5 text-[10px]`}
+        style={{ fontFamily: MONO, fontWeight: 600 }}
+        aria-hidden="true"
       >
-        {done && <Check size={12} strokeWidth={2.5} color={TOKENS.card} />}
+        {mark}
       </span>
       <h3
-        className="text-[14px] tracking-[0.12em] uppercase"
+        className="text-[12px] tracking-[0.14em] uppercase"
         style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
       >
         {title}
       </h3>
+      {done && <Check size={12} strokeWidth={2.5} color={TOKENS.green} className="ml-auto" />}
     </div>
   );
 }
@@ -653,7 +655,7 @@ export default function BrewForm({
 
   return (
     <div
-      className="w-full max-w-[480px] rounded-sm"
+      className="bl-paper w-full max-w-[480px] rounded-sm"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,
@@ -663,7 +665,7 @@ export default function BrewForm({
       {/* Header */}
       <div
         className="px-6 pt-6 pb-5 flex items-center justify-between"
-        style={{ borderBottom: `1px solid ${TOKENS.rule}` }}
+        style={{ borderBottom: `2px solid ${TOKENS.amber}` }}
       >
         <div className="flex items-center gap-2">
           <img
@@ -733,7 +735,7 @@ export default function BrewForm({
         {step === 0 && (
           <>
   {/* 01 Drink */}
-          <StepLabel title="Drink" done={!!drink} />
+          <StepLabel mark="A" title="Drink" done={!!drink} />
           <Field
             label="What did you make?"
             value={drink}
@@ -744,7 +746,7 @@ export default function BrewForm({
           <Divider />
 
   {/* 02 Method */}
-          <StepLabel title="Method" done={!!method} />
+          <StepLabel mark="B" title="Method" done={!!method} />
           <div className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
               <Chip
@@ -780,7 +782,7 @@ export default function BrewForm({
         {step === 1 && (
           <>
   {/* 04 Beans */}
-          <StepLabel title="Beans" done={isBlend ? blendNamed : !!beanName} />
+          <StepLabel mark="C" title="Beans" done={isBlend ? blendNamed : !!beanName} />
 
           {/* Single origin vs blend leads the section, since it decides which
               fields follow. Tapping the active chip clears it, so a bag you're
@@ -899,7 +901,7 @@ export default function BrewForm({
                     fontFamily: MONO,
                     fontSize: 10,
                     letterSpacing: "0.08em",
-                    color: blendTotal === 100 ? TOKENS.green : TOKENS.inkFaint,
+                    color: blendTotal === 100 ? TOKENS.amber : TOKENS.inkFaint,
                   }}
                 >
                   TOTAL {blendTotal}%
@@ -946,7 +948,7 @@ export default function BrewForm({
           <Divider />
 
   {/* 05 Milk — optional; a long black just leaves this blank */}
-          <StepLabel title="Milk" done={!!milkBrand || !!milkType} />
+          <StepLabel mark="D" title="Milk" done={!!milkBrand || !!milkType} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Brand"
@@ -969,7 +971,7 @@ export default function BrewForm({
         {step === 2 && (
           <>
   {/* 03 Equipment */}
-          <StepLabel title="Equipment" done={!!machineBrand || !!grinder} />
+          <StepLabel mark="E" title="Equipment" done={!!machineBrand || !!grinder} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Brewer brand"
@@ -999,7 +1001,7 @@ export default function BrewForm({
         {step === 3 && (
           <>
   {/* 06 Parameters */}
-          <StepLabel title="Parameters" done={!!dose && !!water} />
+          <StepLabel mark="F" title="Parameters" done={!!dose && !!water} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Dose"
@@ -1093,7 +1095,7 @@ export default function BrewForm({
                       letterSpacing: "0.08em",
                       // Advisory only: the pours should add up to the water above,
                       // but a rough log is better than a blocked save.
-                      color: num(water) === poursWater ? TOKENS.green : TOKENS.inkFaint,
+                      color: num(water) === poursWater ? TOKENS.amber : TOKENS.inkFaint,
                     }}
                   >
                     {poursWater}g TOTAL
@@ -1197,7 +1199,7 @@ export default function BrewForm({
         {step === 4 && (
           <>
   {/* 07 Tasting */}
-          <StepLabel title="Tasting Notes" done={flavors.length > 0} />
+          <StepLabel mark="G" title="Tasting Notes" done={flavors.length > 0} />
           <div className="flex flex-wrap gap-2 mb-5">
             {FLAVORS.map((f) => (
               <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />

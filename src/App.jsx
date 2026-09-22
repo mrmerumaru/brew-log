@@ -92,7 +92,7 @@ export default function App() {
   const shell = (children) => (
     <div
       style={{ background: TOKENS.paper, minHeight: "100vh" }}
-      className="w-full flex flex-col items-center py-10 px-4"
+      className="bl-paper w-full flex flex-col items-center py-10 px-4"
     >
       {children}
     </div>
