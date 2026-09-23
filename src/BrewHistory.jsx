@@ -115,7 +115,7 @@ function Meta({ label, value }) {
       >
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.amber }}>{value}</div>
+      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.ink }}>{value}</div>
     </div>
   );
 }
@@ -134,7 +134,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
 
   return (
     <li
-      className="bl-paper rounded-sm overflow-hidden"
+      className="rounded-sm overflow-hidden"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,

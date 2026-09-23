@@ -58,7 +58,7 @@ export default function Login() {
 
   return (
     <div
-      className="bl-paper w-full max-w-[380px] rounded-sm px-6 py-8"
+      className="w-full max-w-[380px] rounded-sm px-6 py-8"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,

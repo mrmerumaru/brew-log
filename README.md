@@ -125,26 +125,6 @@ The mark in the header and on the login screen is the real app icon, so it
 matches the home screen and differs between the two installs like everything
 else about them.
 
-### Editorial detailing
-
-Four print devices, on top of the interaction work above:
-
-- **Lettered section bands.** Each section opens with a ruled band carrying a
-  mono letter, A–G in the order you page through the form — not matching any
-  other numbering, so they read as a sequence. The mark turns amber once the
-  section holds a value.
-- **Paper tooth.** `.bl-paper` lays a generated `feTurbulence` grain over the
-  flat fills at 4% opacity, so surfaces read as stock rather than as a colour
-  swatch. Generated rather than an image: it's finer than a JPEG holds at this
-  size and costs no request. It sits in the background layer, so photos and the
-  share-card canvas paint on top untouched.
-- **An amber rule under the card header**, echoing the share card's
-  photo-to-paper handoff so the app and its output share a device.
-- **Amber means "a recorded measurement"** — ratios, ratings, the running blend
-  and pour totals, and the values in history. Green stays strictly for things
-  you can act on. Previously amber appeared only on ratings, so it read as
-  decoration rather than as a signal.
-
 ## Project layout
 
 ```
