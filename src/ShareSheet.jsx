@@ -179,7 +179,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
           style={{ borderBottom: `1px solid ${TOKENS.rule}`, background: TOKENS.card }}
         >
           <span
-            className="text-[12px] uppercase tracking-[0.12em]"
+            className="text-[14px] uppercase tracking-[0.12em]"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
             Share
@@ -211,7 +211,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   }}
                 >
                   <div
-                    className="text-[12px]"
+                    className="text-[14px]"
                     style={{
                       fontFamily: SANS,
                       fontWeight: 700,
@@ -223,7 +223,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   <div
                     style={{
                       fontFamily: MONO,
-                      fontSize: 10,
+                      fontSize: 12,
                       color: active ? TOKENS.green : TOKENS.inkFaint,
                     }}
                   >
@@ -268,7 +268,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
               <div className="flex items-center gap-3 mb-1">
                 <span
                   className="shrink-0"
-                  style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                  style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
                 >
                   ZOOM
                 </span>
@@ -288,14 +288,14 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                 <button
                   type="button"
                   onClick={() => setTransform(DEFAULT_TRANSFORM)}
-                  className="bl-press bl-quiet shrink-0 text-[10px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet shrink-0 text-[12px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
                 >
                   Reset
                 </button>
               </div>
               <p
-                className="mb-4 text-[12px]"
+                className="mb-4 text-[14px]"
                 style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
               >
                 {canPan
@@ -305,7 +305,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             </>
           ) : (
             <p
-              className="mb-4 text-[12px]"
+              className="mb-4 text-[14px]"
               style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.5 }}
             >
               {CARD_RATIOS[ratio].note}
@@ -316,7 +316,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             type="button"
             onClick={handleSend}
             disabled={busy}
-            className="bl-press bl-solid w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2"
+            className="bl-press bl-solid w-full py-3 rounded-sm text-[16px] flex items-center justify-center gap-2"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -332,7 +332,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
 
           {error && (
             <p
-              className="mt-3 text-[14px]"
+              className="mt-3 text-[16px]"
               style={{ fontFamily: SERIF, color: TOKENS.red }}
               role="alert"
             >
@@ -341,7 +341,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
           )}
 
           {notice && (
-            <p className="mt-3 text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
+            <p className="mt-3 text-[16px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
               {notice}
             </p>
           )}

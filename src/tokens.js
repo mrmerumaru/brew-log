@@ -2,21 +2,25 @@
 // history list, and the login screen all read from one palette.
 // Fonts are loaded via <link> in index.html.
 
-// Type scale. Four steps, deliberately — the UI previously used seven sizes
-// between 9px and 15px, which reads as noise rather than hierarchy:
-//   10  mono uppercase micro-labels
-//   12  dense secondary values, small controls
-//   14  body: inputs, prose, section headings, chips
-//   16  titles
+// Type scale. Four steps, set two notches larger than the interface strictly
+// needs — the app is used one-handed at a kitchen counter, often with a phone
+// propped against something, and generous type is the main thing that makes it
+// readable at arm's length:
+//   12  labels and micro-copy
+//   14  dense secondary values, small controls
+//   16  body: inputs, prose, section headings, chips
+//   18  titles
 // Sizes live in the markup as literals because Tailwind can't take a dynamic
 // class name; this comment is the scale's definition.
 
 export const TOKENS = {
   paper: "#F3F1EC",
   card: "#FBFAF7",
-  ink: "#201D1A",
-  inkFaint: "#6B6558",
-  rule: "#D8D2C4",
+  // Softened from near-black: at 16px on warm paper, full-strength ink reads
+  // as harsh rather than crisp. Still comfortably past the contrast floor.
+  ink: "#2B2621",
+  inkFaint: "#78715F",
+  rule: "#E0DACC",
   green: "#2F5233",
   greenSoft: "#E4EADF",
   amber: "#C77D2E",

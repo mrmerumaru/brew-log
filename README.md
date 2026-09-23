@@ -117,9 +117,17 @@ thicken their underline on focus — via `box-shadow`, not `border-width`, which
 would shift the text by a pixel — and buttons draw a green ring on
 `:focus-visible` only, so a mouse click doesn't leave one behind.
 
-The type scale is four sizes (10/12/14/16). It was seven between 9px and 15px,
-which is noise rather than hierarchy; the scale is documented at the top of
-tokens.js.
+The type scale is four sizes (12/14/16/18) — set two notches larger than the
+interface strictly needs, because it's used one-handed at a kitchen counter and
+often read at arm's length. It was seven sizes between 9px and 15px, which is
+noise rather than hierarchy; the scale is documented at the top of tokens.js.
+
+Ink is softened from near-black (#2B2621 rather than #201D1A), and most all-caps
+mono labels are gone — field labels are sentence-case serif and buttons read as
+instructions rather than shouting. Small caps survive only where the content is
+genuinely tabular, like the ratio readout and the history stat labels. Spacing
+is deliberately loose: the form would fit in less, but the point is that it
+doesn't have to.
 
 The mark in the header and on the login screen is the real app icon, so it
 matches the home screen and differs between the two installs like everything
