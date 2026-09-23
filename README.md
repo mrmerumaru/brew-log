@@ -117,21 +117,33 @@ thicken their underline on focus — via `box-shadow`, not `border-width`, which
 would shift the text by a pixel — and buttons draw a green ring on
 `:focus-visible` only, so a mouse click doesn't leave one behind.
 
-The type scale is four sizes (12/14/16/18) — set two notches larger than the
-interface strictly needs, because it's used one-handed at a kitchen counter and
-often read at arm's length. It was seven sizes between 9px and 15px, which is
-noise rather than hierarchy; the scale is documented at the top of tokens.js.
-
-Ink is softened from near-black (#2B2621 rather than #201D1A), and most all-caps
-mono labels are gone — field labels are sentence-case serif and buttons read as
-instructions rather than shouting. Small caps survive only where the content is
-genuinely tabular, like the ratio readout and the history stat labels. Spacing
-is deliberately loose: the form would fit in less, but the point is that it
-doesn't have to.
+The type scale is four sizes (10/12/14/16). It was seven between 9px and 15px,
+which is noise rather than hierarchy; the scale is documented at the top of
+tokens.js.
 
 The mark in the header and on the login screen is the real app icon, so it
 matches the home screen and differs between the two installs like everything
 else about them.
+
+### Editorial detailing
+
+Four print devices, on top of the interaction work above:
+
+- **Lettered section bands.** Each section opens with a ruled band carrying a
+  mono letter, A–G in the order you page through the form — not matching any
+  other numbering, so they read as a sequence. The mark turns amber once the
+  section holds a value.
+- **Paper tooth.** `.bl-paper` lays a generated `feTurbulence` grain over the
+  flat fills at 4% opacity, so surfaces read as stock rather than as a colour
+  swatch. Generated rather than an image: it's finer than a JPEG holds at this
+  size and costs no request. It sits in the background layer, so photos and the
+  share-card canvas paint on top untouched.
+- **An amber rule under the card header**, echoing the share card's
+  photo-to-paper handoff so the app and its output share a device.
+- **Amber means "a recorded measurement"** — ratios, ratings, the running blend
+  and pour totals, and the values in history. Green stays strictly for things
+  you can act on. Previously amber appeared only on ratings, so it read as
+  decoration rather than as a signal.
 
 ## Project layout
 

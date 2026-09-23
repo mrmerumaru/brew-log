@@ -43,14 +43,14 @@ export default class ErrorBoundary extends React.Component {
           style={{ background: TOKENS.card, border: `1px solid ${TOKENS.rule}` }}
         >
           <h1
-            className="text-[18px] mb-4"
+            className="text-[16px] mb-4"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
             Something went wrong
           </h1>
 
           <p
-            className="mb-5 text-[16px]"
+            className="mb-5 text-[14px]"
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.6 }}
           >
             The app hit an error it couldn't recover from. Nothing you'd already
@@ -58,7 +58,7 @@ export default class ErrorBoundary extends React.Component {
           </p>
 
           <p
-            className="mb-5 p-3 rounded-sm text-[14px]"
+            className="mb-5 p-3 rounded-sm text-[12px]"
             style={{
               fontFamily: MONO,
               color: TOKENS.red,
@@ -74,7 +74,7 @@ export default class ErrorBoundary extends React.Component {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="bl-press bl-solid w-full py-3 rounded-sm text-[16px]"
+            className="bl-press bl-solid w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -88,13 +88,13 @@ export default class ErrorBoundary extends React.Component {
           {stack && (
             <details className="mt-5">
               <summary
-                className="text-[12px] uppercase tracking-[0.08em] cursor-pointer"
+                className="text-[10px] uppercase tracking-[0.08em] cursor-pointer"
                 style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
               >
                 Where it happened
               </summary>
               <pre
-                className="mt-2 text-[14px] whitespace-pre-wrap"
+                className="mt-2 text-[12px] whitespace-pre-wrap"
                 style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
               >
                 {stack.trim()}

@@ -26,6 +26,41 @@ body {
   background: #f3f1ec;
 }
 
+/* --- Paper -------------------------------------------------------------
+   A fine tooth over the flat fills, so the surface reads as stock rather than
+   as a colour swatch. Generated rather than an image file: feTurbulence at a
+   high base frequency gives grain finer than a JPEG could hold at this size,
+   and costs no request.
+
+   Deliberately faint — at 4% it registers as texture without ever looking
+   like noise. It sits in the background layer, so photos and the share-card
+   canvas paint on top of it untouched. */
+.bl-paper {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23t)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* --- Section bands -----------------------------------------------------
+   Each section opens with a ruled band carrying a lettered mark, the way a
+   printed form divides itself. Hairlines top and bottom, a slightly deeper
+   tint than the card, and the label set in mono small caps. */
+.bl-band {
+  background: color-mix(in srgb, var(--paper, #f3f1ec) 70%, var(--card, #fbfaf7));
+  border-top: 1px solid var(--rule, #d8d2c4);
+  border-bottom: 1px solid var(--rule, #d8d2c4);
+}
+
+/* The lettered mark. Amber when the section has something in it, which is the
+   app's one consistent signal for "a value is recorded here". */
+.bl-mark {
+  border: 1px solid var(--rule, #d8d2c4);
+  color: var(--ink-faint, #6b6558);
+}
+
+.bl-mark-set {
+  border-color: var(--amber, #c77d2e);
+  color: var(--amber, #c77d2e);
+}
+
 /* --- Interaction states -------------------------------------------------
    Colours come from the custom properties applyTokens() sets from TOKENS, so
    there's no second copy of the palette here. The fallbacks only matter if

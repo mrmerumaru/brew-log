@@ -133,24 +133,26 @@ function carriedForwardFrom(brew) {
   };
 }
 
-function StepLabel({ title, done }) {
+// A ruled band with a lettered mark, the way a printed form divides itself.
+// The letters run A-G in the order you page through, so they read as a
+// sequence rather than matching some other numbering.
+function StepLabel({ mark, title, done }) {
   return (
-    <div className="flex items-center gap-3 mb-6">
+    <div className="bl-band -mx-6 px-6 py-2.5 mb-5 flex items-center gap-3">
       <span
-        className="flex items-center justify-center w-6 h-6 rounded-full shrink-0"
-        style={{
-          background: done ? TOKENS.green : "transparent",
-          border: `1px solid ${done ? TOKENS.green : TOKENS.rule}`,
-        }}
+        className={`bl-mark${done ? " bl-mark-set" : ""} flex items-center justify-center w-5 h-5 text-[10px]`}
+        style={{ fontFamily: MONO, fontWeight: 600 }}
+        aria-hidden="true"
       >
-        {done && <Check size={12} strokeWidth={2.5} color={TOKENS.card} />}
+        {mark}
       </span>
       <h3
-        className="text-[18px]"
+        className="text-[12px] tracking-[0.14em] uppercase"
         style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
       >
         {title}
       </h3>
+      {done && <Check size={12} strokeWidth={2.5} color={TOKENS.green} className="ml-auto" />}
     </div>
   );
 }
@@ -181,7 +183,7 @@ function StepNav({ step, onGo }) {
               }}
             />
             <span
-              className="text-[12px] uppercase tracking-[0.08em] truncate w-full text-center"
+              className="text-[10px] uppercase tracking-[0.08em] truncate w-full text-center"
               style={{
                 fontFamily: MONO,
                 fontWeight: active ? 700 : 400,
@@ -202,7 +204,7 @@ function Chip({ label, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="bl-press bl-chip px-3 py-1.5 text-[16px] rounded-full"
+      className="bl-press bl-chip px-3 py-1.5 text-[14px] rounded-full"
       style={{
         fontFamily: SERIF,
         border: `1px solid ${active ? TOKENS.green : TOKENS.rule}`,
@@ -236,10 +238,10 @@ function Field({
   const hasSuggestions = suggestions?.length > 0;
 
   return (
-    <label className="flex flex-col gap-2">
+    <label className="flex flex-col gap-1.5">
       <span
-        className="text-[14px]"
-        style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
+        className="text-[10px] tracking-[0.1em] uppercase"
+        style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
       >
         {/* A blank label still has to occupy a line, or this field's input sits
             higher than its labelled neighbours. A plain space collapses to zero
@@ -255,7 +257,7 @@ function Field({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           list={hasSuggestions ? listId : undefined}
-          className="bl-input w-full bg-transparent outline-none pb-1.5 text-[16px]"
+          className="bl-input w-full bg-transparent outline-none pb-1.5 text-[14px]"
           style={{
             // Date inputs render their own picker UI; mono keeps the digits
             // aligned with the other numeric fields.
@@ -265,7 +267,7 @@ function Field({
           }}
         />
         {suffix && (
-          <span style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.inkFaint }}>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint }}>
             {suffix}
           </span>
         )}
@@ -282,7 +284,7 @@ function Field({
 }
 
 function Divider() {
-  return <div className="my-10" style={{ borderTop: `1px dashed ${TOKENS.rule}` }} />;
+  return <div className="my-7" style={{ borderTop: `1px dashed ${TOKENS.rule}` }} />;
 }
 
 // `brew` null = logging a new brew. `brew` set = editing that saved row.
@@ -653,7 +655,7 @@ export default function BrewForm({
 
   return (
     <div
-      className="w-full max-w-[480px] rounded-sm"
+      className="bl-paper w-full max-w-[480px] rounded-sm"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,
@@ -662,8 +664,8 @@ export default function BrewForm({
     >
       {/* Header */}
       <div
-        className="px-7 pt-7 pb-6 flex items-center justify-between"
-        style={{ borderBottom: `1px solid ${TOKENS.rule}` }}
+        className="px-6 pt-6 pb-5 flex items-center justify-between"
+        style={{ borderBottom: `2px solid ${TOKENS.amber}` }}
       >
         <div className="flex items-center gap-2">
           <img
@@ -674,7 +676,7 @@ export default function BrewForm({
             className="rounded-[5px] shrink-0"
           />
           <span
-            className="text-[18px]"
+            className="text-[16px]"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -689,7 +691,7 @@ export default function BrewForm({
           <div
             style={{
               fontFamily: MONO,
-              fontSize: 12,
+              fontSize: 10,
               color: TOKENS.inkFaint,
               letterSpacing: "0.08em",
             }}
@@ -697,7 +699,7 @@ export default function BrewForm({
             RATIO
           </div>
           <div
-            style={{ fontFamily: MONO, fontSize: 18, fontWeight: 600, color: TOKENS.amber }}
+            style={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: TOKENS.amber }}
           >
             {ratio}
           </div>
@@ -709,13 +711,13 @@ export default function BrewForm({
           className="px-6 py-2.5 flex items-center justify-between gap-3"
           style={{ background: TOKENS.greenSoft, borderBottom: `1px solid ${TOKENS.rule}` }}
         >
-          <span style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.green, letterSpacing: "0.08em" }}>
+          <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.green, letterSpacing: "0.08em" }}>
             SETUP CARRIED OVER
           </span>
           <button
             type="button"
             onClick={startBlank}
-            className="bl-press bl-quiet text-[12px] uppercase tracking-[0.08em]"
+            className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
             style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
           >
             Start blank
@@ -729,11 +731,11 @@ export default function BrewForm({
           so unmounting a step keeps its values — and remounting is what
           replays the slide animation. */}
       <div key={step} className={direction >= 0 ? "step-in-fwd" : "step-in-back"}>
-        <div className="px-7 py-8">
+        <div className="px-6 py-6">
         {step === 0 && (
           <>
   {/* 01 Drink */}
-          <StepLabel title="Drink" done={!!drink} />
+          <StepLabel mark="A" title="Drink" done={!!drink} />
           <Field
             label="What did you make?"
             value={drink}
@@ -744,7 +746,7 @@ export default function BrewForm({
           <Divider />
 
   {/* 02 Method */}
-          <StepLabel title="Method" done={!!method} />
+          <StepLabel mark="B" title="Method" done={!!method} />
           <div className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
               <Chip
@@ -780,7 +782,7 @@ export default function BrewForm({
         {step === 1 && (
           <>
   {/* 04 Beans */}
-          <StepLabel title="Beans" done={isBlend ? blendNamed : !!beanName} />
+          <StepLabel mark="C" title="Beans" done={isBlend ? blendNamed : !!beanName} />
 
           {/* Single origin vs blend leads the section, since it decides which
               fields follow. Tapping the active chip clears it, so a bag you're
@@ -822,7 +824,7 @@ export default function BrewForm({
                     <span
                       style={{
                         fontFamily: MONO,
-                        fontSize: 12,
+                        fontSize: 10,
                         color: TOKENS.inkFaint,
                         letterSpacing: "0.1em",
                       }}
@@ -841,7 +843,7 @@ export default function BrewForm({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-5 gap-y-6">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4">
                     <Field
                       label="Origin"
                       value={c.origin}
@@ -884,7 +886,7 @@ export default function BrewForm({
                   <button
                     type="button"
                     onClick={addComponent}
-                    className="bl-press bl-quiet text-[12px] uppercase tracking-[0.08em]"
+                    className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                     style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
                   >
                     + Add bean
@@ -897,9 +899,9 @@ export default function BrewForm({
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 12,
+                    fontSize: 10,
                     letterSpacing: "0.08em",
-                    color: blendTotal === 100 ? TOKENS.green : TOKENS.inkFaint,
+                    color: blendTotal === 100 ? TOKENS.amber : TOKENS.inkFaint,
                   }}
                 >
                   TOTAL {blendTotal}%
@@ -909,7 +911,7 @@ export default function BrewForm({
             </>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-x-5 gap-y-6 mb-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
                 <Field
                   label="Name / roaster"
                   value={beanName}
@@ -946,8 +948,8 @@ export default function BrewForm({
           <Divider />
 
   {/* 05 Milk — optional; a long black just leaves this blank */}
-          <StepLabel title="Milk" done={!!milkBrand || !!milkType} />
-          <div className="grid grid-cols-2 gap-x-5 gap-y-6">
+          <StepLabel mark="D" title="Milk" done={!!milkBrand || !!milkType} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Brand"
               value={milkBrand}
@@ -969,8 +971,8 @@ export default function BrewForm({
         {step === 2 && (
           <>
   {/* 03 Equipment */}
-          <StepLabel title="Equipment" done={!!machineBrand || !!grinder} />
-          <div className="grid grid-cols-2 gap-x-5 gap-y-6">
+          <StepLabel mark="E" title="Equipment" done={!!machineBrand || !!grinder} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Brewer brand"
               value={machineBrand}
@@ -999,8 +1001,8 @@ export default function BrewForm({
         {step === 3 && (
           <>
   {/* 06 Parameters */}
-          <StepLabel title="Parameters" done={!!dose && !!water} />
-          <div className="grid grid-cols-2 gap-x-5 gap-y-6">
+          <StepLabel mark="F" title="Parameters" done={!!dose && !!water} />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
               label="Dose"
               value={dose}
@@ -1078,7 +1080,7 @@ export default function BrewForm({
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 12,
+                    fontSize: 10,
                     color: TOKENS.inkFaint,
                     letterSpacing: "0.1em",
                   }}
@@ -1089,11 +1091,11 @@ export default function BrewForm({
                   <span
                     style={{
                       fontFamily: MONO,
-                      fontSize: 12,
+                      fontSize: 10,
                       letterSpacing: "0.08em",
                       // Advisory only: the pours should add up to the water above,
                       // but a rough log is better than a blocked save.
-                      color: num(water) === poursWater ? TOKENS.green : TOKENS.inkFaint,
+                      color: num(water) === poursWater ? TOKENS.amber : TOKENS.inkFaint,
                     }}
                   >
                     {poursWater}g TOTAL
@@ -1105,7 +1107,7 @@ export default function BrewForm({
               {/* Pour 1 is expected but not enforced — the save goes through
                   either way, since a partial log beats an abandoned one. */}
               {num(pours[0]?.water) == null && (
-                <p className="text-[14px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.amber }}>
+                <p className="text-[12px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.amber }}>
                   Pour 1 has no water recorded — this brew won't be reproducible.
                 </p>
               )}
@@ -1118,13 +1120,13 @@ export default function BrewForm({
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+                      style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
                     >
                       POUR {i + 1}
                     </span>
                     <span className="flex items-center gap-3">
                       <span
-                        style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.ink }}
+                        style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.ink }}
                       >
                         {pourRunningTotals[i] > 0 ? `${pourRunningTotals[i]}g` : ""}
                       </span>
@@ -1183,7 +1185,7 @@ export default function BrewForm({
                 <button
                   type="button"
                   onClick={addPour}
-                  className="bl-press bl-quiet mt-4 text-[12px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet mt-4 text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.green, textDecoration: "underline" }}
                 >
                   + Add pour
@@ -1197,7 +1199,7 @@ export default function BrewForm({
         {step === 4 && (
           <>
   {/* 07 Tasting */}
-          <StepLabel title="Tasting Notes" done={flavors.length > 0} />
+          <StepLabel mark="G" title="Tasting Notes" done={flavors.length > 0} />
           <div className="flex flex-wrap gap-2 mb-5">
             {FLAVORS.map((f) => (
               <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
@@ -1208,7 +1210,7 @@ export default function BrewForm({
             <span
               style={{
                 fontFamily: MONO,
-                fontSize: 12,
+                fontSize: 10,
                 color: TOKENS.inkFaint,
                 letterSpacing: "0.1em",
               }}
@@ -1236,7 +1238,7 @@ export default function BrewForm({
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Anything else worth remembering about this cup…"
             rows={2}
-            className="bl-input w-full bg-transparent outline-none resize-none text-[16px] pb-1.5"
+            className="bl-input w-full bg-transparent outline-none resize-none text-[14px] pb-1.5"
             style={{
               fontFamily: SERIF,
               fontStyle: "italic",
@@ -1276,7 +1278,7 @@ export default function BrewForm({
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="bl-press bl-solid flex-1 py-3 rounded-sm text-[16px] flex items-center justify-center gap-2"
+                className="bl-press bl-solid flex-1 py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2"
                 style={{
                   fontFamily: SANS,
                   fontWeight: 700,
@@ -1344,7 +1346,7 @@ export default function BrewForm({
           <button
             type="button"
             onClick={() => goToStep(step - 1)}
-            className="bl-press bl-quiet flex items-center gap-1.5 text-[16px]"
+            className="bl-press bl-quiet flex items-center gap-1.5 text-[12px] uppercase tracking-[0.08em]"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.inkFaint }}
           >
             <ChevronLeft size={14} />
@@ -1359,7 +1361,7 @@ export default function BrewForm({
           <button
             type="button"
             onClick={() => goToStep(step + 1)}
-            className="bl-press bl-solid flex items-center gap-1.5 px-5 py-2.5 rounded-sm text-[16px]"
+            className="bl-press bl-solid flex items-center gap-1.5 px-4 py-2 rounded-sm text-[12px] uppercase tracking-[0.08em]"
             style={{
               fontFamily: SANS,
               fontWeight: 700,
@@ -1373,10 +1375,10 @@ export default function BrewForm({
         )}
       </div>
 
-      <div className="px-7 pb-8">
+      <div className="px-6 pb-6">
         {error && (
           <p
-            className="mt-4 text-[16px]"
+            className="mt-4 text-[14px]"
             style={{ fontFamily: SERIF, color: TOKENS.red }}
             role="alert"
           >

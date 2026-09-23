@@ -58,7 +58,7 @@ export default function Login() {
 
   return (
     <div
-      className="w-full max-w-[380px] rounded-sm px-7 py-9"
+      className="bl-paper w-full max-w-[380px] rounded-sm px-6 py-8"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,
@@ -74,7 +74,7 @@ export default function Login() {
           className="rounded-[5px] shrink-0"
         />
         <span
-          className="text-[18px]"
+          className="text-[16px]"
           style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink, letterSpacing: "0.01em" }}
         >
           Brew Log
@@ -83,7 +83,7 @@ export default function Login() {
 
       <p
         className="mb-6"
-        style={{ fontFamily: SERIF, fontSize: 16, color: TOKENS.inkFaint, lineHeight: 1.6 }}
+        style={{ fontFamily: SERIF, fontSize: 14, color: TOKENS.inkFaint, lineHeight: 1.6 }}
       >
         Sign in to log your brews and look back at what worked. Your brews are
         private to you.
@@ -93,7 +93,7 @@ export default function Login() {
         type="button"
         onClick={handleGoogle}
         disabled={loading}
-        className="bl-press bl-chip w-full py-3 rounded-sm text-[16px] flex items-center justify-center gap-2.5"
+        className="bl-press bl-chip w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2.5"
         style={{
           fontFamily: SANS,
           fontWeight: 700,
@@ -110,7 +110,7 @@ export default function Login() {
 
       {error && (
         <p
-          className="mt-4 text-[16px]"
+          className="mt-4 text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.red }}
           role="alert"
         >

@@ -17,7 +17,7 @@ function Tab({ label, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="bl-press bl-quiet px-4 py-2.5 text-[16px]"
+      className="bl-press bl-quiet px-4 py-2 text-[12px] uppercase tracking-[0.1em]"
       style={{
         fontFamily: SANS,
         fontWeight: 700,
@@ -92,7 +92,7 @@ export default function App() {
   const shell = (children) => (
     <div
       style={{ background: TOKENS.paper, minHeight: "100vh" }}
-      className="w-full flex flex-col items-center py-12 px-4"
+      className="bl-paper w-full flex flex-col items-center py-10 px-4"
     >
       {children}
     </div>
@@ -126,7 +126,7 @@ export default function App() {
               so the only way to tell them apart is to say so. */}
           {!IS_PRODUCTION && (
             <span
-              className="px-1.5 py-0.5 rounded-sm text-[12px] uppercase tracking-[0.1em]"
+              className="px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-[0.1em]"
               style={{
                 fontFamily: MONO,
                 fontWeight: 600,
@@ -141,7 +141,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => supabase.auth.signOut()}
-            className="bl-press bl-quiet text-[14px]"
+            className="bl-press bl-quiet text-[10px] uppercase tracking-[0.1em]"
             style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
           >
             Sign out

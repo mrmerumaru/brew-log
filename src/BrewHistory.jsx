@@ -42,7 +42,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search beans, origin, roaster…"
-        className="bl-input w-full bg-transparent outline-none pb-1.5 text-[16px] mb-3"
+        className="bl-input w-full bg-transparent outline-none pb-1.5 text-[14px] mb-3"
         style={{
           fontFamily: SERIF,
           color: TOKENS.ink,
@@ -56,7 +56,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
             key={m}
             type="button"
             onClick={() => setMethod(method === m ? null : m)}
-            className="bl-press bl-chip px-2.5 py-1 rounded-full text-[14px]"
+            className="bl-press bl-chip px-2.5 py-1 rounded-full text-[12px]"
             style={{
               fontFamily: SERIF,
               border: `1px solid ${method === m ? TOKENS.green : TOKENS.rule}`,
@@ -71,7 +71,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         <span className="flex items-center gap-1 ml-auto">
           <span
             className="mr-1"
-            style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+            style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
             MIN
           </span>
@@ -96,7 +96,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
         <button
           type="button"
           onClick={onClear}
-          className="bl-press bl-quiet mt-3 text-[12px] uppercase tracking-[0.08em]"
+          className="bl-press bl-quiet mt-3 text-[10px] uppercase tracking-[0.08em]"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
         >
           Clear filters
@@ -111,11 +111,11 @@ function Meta({ label, value }) {
   return (
     <div>
       <div
-        style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint, letterSpacing: "0.04em" }}
+        style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
       >
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 16, color: TOKENS.ink }}>{value}</div>
+      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.amber }}>{value}</div>
     </div>
   );
 }
@@ -134,14 +134,14 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
 
   return (
     <li
-      className="rounded-sm overflow-hidden"
+      className="bl-paper rounded-sm overflow-hidden"
       style={{
         background: TOKENS.card,
         border: `1px solid ${TOKENS.rule}`,
         boxShadow: "0 1px 2px rgba(32,29,26,0.04)",
       }}
     >
-      <div className="flex gap-5 p-5">
+      <div className="flex gap-4 p-4">
         <div
           className="shrink-0 rounded-sm overflow-hidden flex items-center justify-center"
           style={{
@@ -161,7 +161,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <h3
-              className="text-[16px] truncate"
+              className="text-[14px] truncate"
               style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
             >
               {brew.drink || brew.method || "Brew"}
@@ -182,7 +182,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
           </div>
 
           <p
-            className="text-[16px] mt-0.5 truncate"
+            className="text-[14px] mt-0.5 truncate"
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
           >
             {/* Method moves here once a drink is named, so it isn't lost. */}
@@ -194,7 +194,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
           {/* Grouped with the beans line — both describe what went in the cup. */}
           {milk && (
             <p
-              className="text-[14px] mt-1 truncate"
+              className="text-[12px] mt-1 truncate"
               style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
             >
               {milk}
@@ -214,8 +214,8 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
           {/* The pour schedule is the whole point of recording it — a pourover
               can't be reproduced from the totals alone. */}
           {pours && (
-            <p className="text-[14px] mt-2" style={{ fontFamily: MONO, color: TOKENS.inkFaint }}>
-              <span style={{ letterSpacing: "0.1em", fontSize: 12 }}>POURS </span>
+            <p className="text-[12px] mt-2" style={{ fontFamily: MONO, color: TOKENS.inkFaint }}>
+              <span style={{ letterSpacing: "0.1em", fontSize: 10 }}>POURS </span>
               {pours}
             </p>
           )}
@@ -225,7 +225,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               {brew.flavor_tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 rounded-full text-[14px]"
+                  className="px-2 py-0.5 rounded-full text-[12px]"
                   style={{
                     fontFamily: SERIF,
                     background: TOKENS.greenSoft,
@@ -240,7 +240,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
 
           {brew.notes && (
             <p
-              className="text-[16px] mt-3"
+              className="text-[14px] mt-3"
               style={{ fontFamily: SERIF, fontStyle: "italic", color: TOKENS.ink }}
             >
               {brew.notes}
@@ -251,7 +251,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             <span
               style={{
                 fontFamily: MONO,
-                fontSize: 12,
+                fontSize: 10,
                 color: TOKENS.inkFaint,
                 letterSpacing: "0.08em",
               }}
@@ -262,20 +262,20 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
             {deleting ? (
               <span
                 className="flex items-center gap-1.5"
-                style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint }}
+                style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint }}
               >
                 <Loader2 size={11} className="animate-spin" />
                 Deleting…
               </span>
             ) : confirming ? (
               <span className="flex items-center gap-3">
-                <span style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint }}>
+                <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint }}>
                   Delete?
                 </span>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="bl-press bl-quiet text-[12px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
                 >
                   Cancel
@@ -283,7 +283,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
                 <button
                   type="button"
                   onClick={() => onDelete(brew)}
-                  className="bl-press bl-quiet text-[12px] uppercase tracking-[0.08em]"
+                  className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, fontWeight: 600, color: TOKENS.red }}
                 >
                   Delete
@@ -500,7 +500,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
     return (
       <div
         className="flex items-center justify-center gap-2 py-16"
-        style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.inkFaint }}
+        style={{ fontFamily: MONO, fontSize: 12, color: TOKENS.inkFaint }}
       >
         <Loader2 size={14} className="animate-spin" />
         Loading brews…
@@ -510,7 +510,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
   if (error) {
     return (
-      <p className="py-16 text-center text-[16px]" style={{ fontFamily: SERIF, color: TOKENS.red }}>
+      <p className="py-16 text-center text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.red }}>
         {error}
       </p>
     );
@@ -520,7 +520,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
     return (
       <div className="py-16 text-center">
         <Coffee size={22} style={{ color: TOKENS.rule }} className="mx-auto mb-3" />
-        <p style={{ fontFamily: SERIF, fontSize: 16, color: TOKENS.inkFaint }}>
+        <p style={{ fontFamily: SERIF, fontSize: 14, color: TOKENS.inkFaint }}>
           No brews yet. Log one and it'll show up here.
         </p>
       </div>
@@ -546,7 +546,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
       <div className="flex items-center justify-between mb-4">
         <span
-          className="text-[12px] uppercase"
+          className="text-[10px] uppercase"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
         >
           {filtersActive
@@ -556,7 +556,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
         <button
           type="button"
           onClick={load}
-          className="bl-press bl-quiet flex items-center gap-1.5 text-[12px] uppercase"
+          className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
         >
           <RefreshCw size={11} />
@@ -566,13 +566,13 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
       {visible.length === 0 ? (
         <p
-          className="py-10 text-center text-[16px]"
+          className="py-10 text-center text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
         >
           No brews match those filters.
         </p>
       ) : (
-      <ul className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-3">
         {visible.map((brew) => (
           <BrewCard
             key={brew.id}
@@ -590,7 +590,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
 
       {deleteError && (
         <p
-          className="mt-4 text-[16px]"
+          className="mt-4 text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.red }}
           role="alert"
         >
