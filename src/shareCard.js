@@ -53,32 +53,58 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const CUP_SIZE = 40;
 const CUP_GAP = 10;
 const RATING_W = 5 * CUP_SIZE + 4 * CUP_GAP;
+const RATING_HALO = "rgba(255, 255, 255, 0.92)";
 
 /**
  * A coffee cup, drawn as paths. Canvas can't use the React icon set, and an
  * emoji would render as a colour glyph that clashes with the card's palette.
  * Filled = earned rating, outline = remaining.
  */
-function drawCup(ctx, x, y, size, filled, color) {
+function drawCup(ctx, x, y, size, filled, color, outline) {
   const bodyW = size * 0.74;
   const bodyH = size * 0.66;
   const top = y + size * 0.17;
 
-  // Tapered cup seen side-on.
-  ctx.beginPath();
-  ctx.moveTo(x, top);
-  ctx.lineTo(x + bodyW, top);
-  ctx.lineTo(x + bodyW * 0.84, top + bodyH);
-  ctx.quadraticCurveTo(
-    x + bodyW * 0.8,
-    top + bodyH + size * 0.05,
-    x + bodyW * 0.72,
-    top + bodyH + size * 0.05,
-  );
-  ctx.lineTo(x + bodyW * 0.16, top + bodyH + size * 0.05);
-  ctx.quadraticCurveTo(x + bodyW * 0.1, top + bodyH + size * 0.05, x + bodyW * 0.14, top + bodyH);
-  ctx.closePath();
+  ctx.save();
+  ctx.lineJoin = "round";
 
+  // Tapered cup seen side-on.
+  const body = () => {
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x + bodyW, top);
+    ctx.lineTo(x + bodyW * 0.84, top + bodyH);
+    ctx.quadraticCurveTo(
+      x + bodyW * 0.8,
+      top + bodyH + size * 0.05,
+      x + bodyW * 0.72,
+      top + bodyH + size * 0.05,
+    );
+    ctx.lineTo(x + bodyW * 0.16, top + bodyH + size * 0.05);
+    ctx.quadraticCurveTo(x + bodyW * 0.1, top + bodyH + size * 0.05, x + bodyW * 0.14, top + bodyH);
+    ctx.closePath();
+  };
+
+  const handle = () => {
+    ctx.beginPath();
+    ctx.arc(x + bodyW, top + bodyH * 0.36, size * 0.17, -Math.PI / 2, Math.PI / 2);
+  };
+
+  // A halo first, so the cup separates from whatever is behind it. Amber on a
+  // warm photo is otherwise nearly invisible — half this stroke sits outside
+  // the shape, and the fill then covers the inner half.
+  if (outline) {
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = size * 0.2;
+    body();
+    ctx.stroke();
+
+    ctx.lineWidth = size * 0.19;
+    handle();
+    ctx.stroke();
+  }
+
+  body();
   if (filled) {
     ctx.fillStyle = color;
     ctx.fill();
@@ -88,12 +114,12 @@ function drawCup(ctx, x, y, size, filled, color) {
     ctx.stroke();
   }
 
-  // Handle on the right.
-  ctx.beginPath();
-  ctx.arc(x + bodyW, top + bodyH * 0.36, size * 0.17, -Math.PI / 2, Math.PI / 2);
+  handle();
   ctx.strokeStyle = color;
   ctx.lineWidth = size * 0.09;
   ctx.stroke();
+
+  ctx.restore();
 }
 
 function drawRating(ctx, x, y, rating) {
@@ -106,6 +132,10 @@ function drawRating(ctx, x, y, rating) {
       CUP_SIZE,
       filled,
       filled ? TOKENS.amber : TOKENS.rule,
+      // Rating cups sit over the photo where the scrim is still thin, so they
+      // always carry the halo. The footer mark doesn't — it's already light on
+      // a near-solid base.
+      RATING_HALO,
     );
   }
 }
@@ -171,6 +201,29 @@ function layoutChips(ctx, tags, maxWidth) {
 function chipRowsHeight(rows) {
   if (!rows.length) return 0;
   return rows.length * OVER_CHIP_H + (rows.length - 1) * OVER_CHIP_GAP;
+}
+
+/**
+ * Draw text with one character kerned in tighter than the font allows.
+ *
+ * The stats run in a monospace face, where a space advances as far as a digit
+ * — so "1 : 16.1" leaves gaps wide enough that the ratio reads as three
+ * separate numbers. Drawing the separator by hand gives a gap of a few pixels
+ * instead of a full character on each side.
+ */
+function drawKerned(ctx, text, x, y, separator, gap) {
+  const parts = text.split(separator);
+  if (parts.length !== 2) {
+    ctx.fillText(text, x, y);
+    return x + ctx.measureText(text).width;
+  }
+
+  let cursor = x;
+  for (const [i, part] of [parts[0], separator, parts[1]].entries()) {
+    ctx.fillText(part, cursor, y);
+    cursor += ctx.measureText(part).width + (i < 2 ? gap : 0);
+  }
+  return cursor;
 }
 
 function truncate(ctx, text, maxWidth) {
@@ -241,7 +294,8 @@ function cardContent(brew) {
     // repeatability data, still recorded on the brew and shown in history, but
     // they crowded the card without meaning much to anyone else.
     stats: [
-      ["RATIO", ratioOf(brew)],
+      // Spaces stripped: the kerned draw below spaces the colon itself.
+    ["RATIO", ratioOf(brew)?.replace(/\s+/g, ""), { kern: ":" }],
       ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
       ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
       ["TIME", formatBrewTime(brew.brew_time_s)],
@@ -285,6 +339,12 @@ const OVER_FOOTER_H = 34;
 const OVER_CHIP_H = 48;
 const OVER_CHIP_GAP = 12;
 const OVER_CHIP_FONT = 26;
+
+// Space between a stat's label and its reading, and the space held either side
+// of the ratio's colon — both tuned against the monospace face, where an
+// ordinary space is as wide as a digit.
+const LABEL_GAP = 16;
+const KERN_GAP = 5;
 const MAX_CHIP_ROWS = 2;
 
 function drawOverlay(ctx, brew, img, spec, transform) {
@@ -362,7 +422,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   // their labels muted and the numbers bright.
   if (stats.length) {
     let x = PAD;
-    stats.forEach(([label, value], i) => {
+    stats.forEach(([label, value, opts], i) => {
       if (i > 0) {
         ctx.font = `400 24px ${MONO}`;
         ctx.fillStyle = OVER_MUTED;
@@ -372,12 +432,15 @@ function drawOverlay(ctx, brew, img, spec, transform) {
       ctx.font = `500 22px ${MONO}`;
       ctx.fillStyle = OVER_MUTED;
       ctx.fillText(label, x, y + 4);
-      x += ctx.measureText(label).width + 8;
+      // A monospace label sits too close to its reading at 8px; the eye wants
+      // the pair grouped, then clearly separated from the next pair.
+      x += ctx.measureText(label).width + LABEL_GAP;
 
       ctx.font = `600 26px ${MONO}`;
       ctx.fillStyle = OVER_BRIGHT;
-      ctx.fillText(String(value), x, y);
-      x += ctx.measureText(String(value)).width;
+      x = opts?.kern
+        ? drawKerned(ctx, String(value), x, y, opts.kern, KERN_GAP)
+        : (ctx.fillText(String(value), x, y), x + ctx.measureText(String(value)).width);
     });
     y += OVER_STATS_H + OVER_GAP;
   }
