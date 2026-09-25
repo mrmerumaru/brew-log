@@ -158,6 +158,8 @@ src/
   ShareSheet.jsx     share dialog: aspect choice, live preview, pan and zoom
   shareCard.js       paints the card on a canvas and hands it to the OS
   brew.js            pure helpers — times, ratios, blends, pours, suggestions
+  Insights.jsx       what the log adds up to; reuses App's fetch, queries nothing
+  stats.js           the arithmetic behind Insights, pure and Node-testable
   image.js           resizes photos before upload, honouring EXIF orientation
   supabaseClient.js  the shared Supabase connection
   tokens.js          colors, fonts, and the option lists (methods, flavors, …)
@@ -386,13 +388,28 @@ extension follows what was actually encoded, so a resized PNG is saved as
 Photos uploaded before this existed are still full size; re-saving those brews
 with the photo re-picked is the only way to shrink them.
 
+### Insights
+
+The third tab answers the PRD's third goal — what produced your best results.
+It contrasts the parameters of brews rated 4★ and up against the rest, ranks
+methods, beans and grinders by average rating, and lists the cups worth
+repeating.
+
+The guard rails matter more than the arithmetic, because numbers presented as
+insight get believed. A group under three brews is dropped rather than shown,
+since a single 5★ brew would otherwise top every table forever. Every figure
+carries the count behind it. And grind size is only compared when one grinder
+is in play — 18 on a Comandante and 18 on a 1Zpresso aren't the same grind, so
+mixing them would invent a finding. `stats.js` is pure and runs under plain
+Node, which is how those rules are tested.
+
+It adds no query: `rating` and `flavor_tags` joined the fetch App already made
+for carry-forward and autocomplete.
+
 ## Not built yet
 
 - **Equipment is write-only.** Brewer brand, model, grinder, process and roast
   level are recorded and searchable but never displayed back in history.
-- **Nothing analyses the data.** The PRD's third goal — identify what produced
-  your best results — has no view. Filtering finds a good brew; nothing shows
-  what the good ones have in common.
 - **Flavour tags are the fixed eight** from the mockup; the PRD's question about
   custom tags is still open.
 - **Bean variety** (the cultivar half — Bourbon, Typica, SL28) is in the PRD's

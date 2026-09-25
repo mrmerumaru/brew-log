@@ -3,14 +3,16 @@ import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import BrewForm from "./BrewForm";
 import BrewHistory from "./BrewHistory";
+import Insights from "./Insights";
 import { TOKENS, SANS, MONO } from "./tokens";
 import { suggestionsFrom } from "./brew";
 import { IS_PRODUCTION } from "./env";
 
-// Columns the form needs for carry-forward and autocomplete. Deliberately not
-// `*` — notes and photo_path aren't used here and would just add weight.
+// Columns the form needs for carry-forward and autocomplete, plus the two
+// Insights reads. Deliberately not `*` — notes and photo_path aren't used by
+// either and would just add weight.
 const SETUP_COLUMNS =
-  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours";
+  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags";
 
 function Tab({ label, active, onClick }) {
   return (
@@ -120,6 +122,11 @@ export default function App() {
             active={tab === "history"}
             onClick={() => (editing ? finishEdit() : setTab("history"))}
           />
+          <Tab
+            label="Insights"
+            active={tab === "insights"}
+            onClick={() => (editing ? finishEdit() : setTab("insights"))}
+          />
         </div>
         <div className="flex items-center gap-3 pb-2">
           {/* Both environments point at the same database and look identical,
@@ -166,8 +173,11 @@ export default function App() {
             onExitEdit={finishEdit}
           />
         )
-      ) : (
+      ) : tab === "history" ? (
         <BrewHistory refreshKey={refreshKey} onEdit={startEdit} />
+      ) : (
+        // Reuses the fetch above rather than querying again.
+        <Insights brews={pastBrews ?? []} />
       )}
     </>,
   );
