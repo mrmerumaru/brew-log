@@ -38,22 +38,35 @@ export default function App() {
   const [tab, setTab] = useState("log");
   // Bumped on every successful save so the history list refetches when opened.
   const [refreshKey, setRefreshKey] = useState(0);
-  // { brew, photoUrl } while editing a saved brew, otherwise null. The photoUrl
-  // is the signed URL the history card already fetched, reused as the preview
-  // so the form doesn't have to sign it again.
-  const [editing, setEditing] = useState(null);
+  // What the Log tab is showing:
+  //   null                          a new brew, carried forward from the latest
+  //   { mode: "edit",   brew, … }   changing a saved brew in place
+  //   { mode: "repeat", brew }      a new brew, carried forward from THAT one
+  // One field rather than two flags, so "editing" and "repeating" can't both
+  // be true. photoUrl is the signed URL the history card already fetched,
+  // reused as the edit preview so the form needn't sign it again.
+  const [source, setSource] = useState(null);
+  const editing = source?.mode === "edit" ? source : null;
   // undefined = still loading, null = no brews yet. The form waits for this so
   // its initial field values are right on first render rather than flashing
   // blank and then filling in.
   const [pastBrews, setPastBrews] = useState(undefined);
 
   const startEdit = (brew, photoUrl) => {
-    setEditing({ brew, photoUrl: photoUrl ?? null });
+    setSource({ mode: "edit", brew, photoUrl: photoUrl ?? null });
+    setTab("log");
+  };
+
+  // Same setup, fresh cup: the brew is handed over as the carry-forward source
+  // rather than as the row being edited, so saving writes a new row and the
+  // tasting notes and photo start empty.
+  const startRepeat = (brew) => {
+    setSource({ mode: "repeat", brew });
     setTab("log");
   };
 
   const finishEdit = () => {
-    setEditing(null);
+    setSource(null);
     setTab("history");
   };
 
@@ -164,17 +177,22 @@ export default function App() {
             // Remounting on mode change is what re-reads the initial field
             // values, so editing a brew loads its data instead of keeping
             // whatever was on screen.
-            key={editing?.brew.id ?? "new"}
+            // Remounting is what re-reads the initial field values, so the key
+            // has to change for every distinct thing the form can be showing.
+            key={source ? `${source.mode}-${source.brew.id}` : "new"}
             brew={editing?.brew ?? null}
             initialPhotoUrl={editing?.photoUrl ?? null}
-            previousBrew={pastBrews?.[0] ?? null}
+            previousBrew={
+              source?.mode === "repeat" ? source.brew : (pastBrews?.[0] ?? null)
+            }
+            repeating={source?.mode === "repeat"}
             suggestions={suggestionsFrom(pastBrews ?? [])}
             onSaved={() => setRefreshKey((k) => k + 1)}
             onExitEdit={finishEdit}
           />
         )
       ) : tab === "history" ? (
-        <BrewHistory refreshKey={refreshKey} onEdit={startEdit} />
+        <BrewHistory refreshKey={refreshKey} onEdit={startEdit} onRepeat={startRepeat} />
       ) : (
         // Reuses the fetch above rather than querying again.
         <Insights brews={pastBrews ?? []} />

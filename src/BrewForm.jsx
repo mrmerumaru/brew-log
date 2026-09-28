@@ -294,6 +294,9 @@ export default function BrewForm({
   brew = null,
   initialPhotoUrl = null,
   previousBrew = null,
+  // True when previousBrew is a brew picked out of history rather than simply
+  // the most recent one — only changes what the banner says.
+  repeating = false,
   suggestions = {},
   onSaved,
   onExitEdit,
@@ -347,6 +350,9 @@ export default function BrewForm({
   // Whether the fields on screen came from a previous brew rather than being
   // typed fresh — drives the "carried over" banner.
   const [carried, setCarried] = useState(!isEditing && Boolean(previousBrew));
+  // Goes false after a save: from then on the values on screen came from the
+  // brew just logged, not from the one picked out of history.
+  const [fromRepeat, setFromRepeat] = useState(!isEditing && repeating);
 
   const fileInputRef = useRef(null);
   const savedTimerRef = useRef(null);
@@ -506,12 +512,14 @@ export default function BrewForm({
     applyFields(carriedForwardFrom(row));
     clearPhoto();
     setCarried(true);
+    setFromRepeat(false);
   };
 
   const startBlank = () => {
     applyFields(DEFAULTS);
     clearPhoto();
     setCarried(false);
+    setFromRepeat(false);
   };
 
   const handleSave = async () => {
@@ -712,7 +720,7 @@ export default function BrewForm({
           style={{ background: TOKENS.greenSoft, borderBottom: `1px solid ${TOKENS.rule}` }}
         >
           <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.green, letterSpacing: "0.08em" }}>
-            SETUP CARRIED OVER
+            {fromRepeat ? "BREWING THIS AGAIN" : "SETUP CARRIED OVER"}
           </span>
           <button
             type="button"

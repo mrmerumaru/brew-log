@@ -388,6 +388,19 @@ extension follows what was actually encoded, so a resized PNG is saved as
 Photos uploaded before this existed are still full size; re-saving those brews
 with the photo re-picked is the only way to shrink them.
 
+### Brew this again
+
+The repeat button on a history card opens the form carrying that brew's setup
+forward — method, equipment, beans, milk, parameters — with the tasting notes,
+rating and photo cleared. It writes a **new** row; editing is the separate
+action beside it.
+
+It reuses the carry-forward path rather than adding one: App holds a single
+`source` field describing what the Log tab is showing (`null`, `edit` or
+`repeat`) instead of separate flags, so "editing" and "repeating" can't both be
+true. A repeat passes the chosen brew as `previousBrew`, which is the same
+machinery that carries your most recent setup forward by default.
+
 ### Insights
 
 The third tab answers the PRD's third goal — what produced your best results.

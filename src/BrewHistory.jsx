@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Coffee, Loader2, Pencil, RefreshCw, Share2, Trash2 } from "lucide-react";
+import { Coffee, Loader2, Pencil, RefreshCw, Repeat, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
 import {
@@ -120,7 +120,7 @@ function Meta({ label, value }) {
   );
 }
 
-function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing }) {
+function BrewCard({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, deleting, sharing }) {
   const ratio = ratioOf(brew);
   const brewTime = formatBrewTime(brew.brew_time_s);
   // Relative to when this brew was made, not today — see daysOffRoast.
@@ -293,6 +293,16 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
               <span className="flex items-center gap-3">
                 <button
                   type="button"
+                  onClick={() => onRepeat(brew)}
+                  aria-label={`Brew this ${brew.drink || brew.method || "brew"} again`}
+                  title="Brew this again"
+                  className="bl-press bl-quiet"
+                  style={{ color: TOKENS.inkFaint }}
+                >
+                  <Repeat size={14} />
+                </button>
+                <button
+                  type="button"
                   onClick={() => onShare(brew)}
                   disabled={sharing}
                   aria-label={`Share this ${brew.drink || brew.method || "brew"}`}
@@ -335,7 +345,7 @@ function BrewCard({ brew, photoUrl, onEdit, onDelete, onShare, deleting, sharing
   );
 }
 
-export default function BrewHistory({ refreshKey, onEdit }) {
+export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
   const [brews, setBrews] = useState([]);
   const [photoUrls, setPhotoUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -579,6 +589,7 @@ export default function BrewHistory({ refreshKey, onEdit }) {
             brew={brew}
             photoUrl={photoUrls[brew.photo_path]}
             onEdit={onEdit}
+            onRepeat={onRepeat}
             onDelete={handleDelete}
             onShare={handleShare}
             deleting={deletingId === brew.id}
