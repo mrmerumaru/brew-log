@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Coffee,
   Loader2,
+  Plus,
   Share2,
   X,
 } from "lucide-react";
@@ -47,6 +48,13 @@ import {
 import ShareSheet from "./ShareSheet";
 import { APP_ICON } from "./env";
 import { compressPhoto } from "./image";
+import {
+  MAX_CUSTOM_FLAVORS,
+  addCustom,
+  loadCustom,
+  removeCustom,
+  saveCustom,
+} from "./customFlavorTags";
 
 const DEFAULTS = {
   drink: "",
@@ -217,6 +225,47 @@ function Chip({ label, active, onClick }) {
   );
 }
 
+// A custom tag chip — same look as Chip, plus a small × that lets the user
+// remove the tag from their saved list. The × sits inside the chip but stops
+// the click from toggling selection, so you don't accidentally delete a tag
+// you wanted to keep.
+function CustomChip({ label, active, onClick, onRemove }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full"
+      style={{
+        fontFamily: SERIF,
+        border: `1px solid ${active ? TOKENS.green : TOKENS.rule}`,
+        background: active ? TOKENS.greenSoft : "transparent",
+        color: active ? TOKENS.green : TOKENS.inkFaint,
+        paddingLeft: 12,
+        paddingRight: 4,
+        paddingTop: 6,
+        paddingBottom: 6,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className="bl-press text-[14px]"
+        aria-label={`Toggle ${label}`}
+      >
+        {label}
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="bl-press rounded-full p-0.5"
+        aria-label={`Remove custom tag ${label}`}
+        title="Remove tag"
+        style={{ color: TOKENS.inkFaint }}
+      >
+        <X size={11} />
+      </button>
+    </span>
+  );
+}
+
 function Field({
   label,
   value,
@@ -332,6 +381,11 @@ export default function BrewForm({
   const [timeSec, setTimeSec] = useState(init.timeSec);
   const [pours, setPours] = useState(init.pours);
   const [flavors, setFlavors] = useState(init.flavors);
+  // Tags you've added yourself, kept in localStorage so they appear next brew too.
+  // Built-in FLAVORS stays as the always-present baseline above this row.
+  const [customFlavors, setCustomFlavors] = useState(() => loadCustom());
+  const [newFlavor, setNewFlavor] = useState("");
+  const [flavorError, setFlavorError] = useState(null);
   const [rating, setRating] = useState(init.rating);
   const [notes, setNotes] = useState(init.notes);
 
@@ -461,6 +515,37 @@ export default function BrewForm({
 
   const toggleFlavor = (f) =>
     setFlavors((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
+
+  const submitCustomFlavor = () => {
+    const result = addCustom(customFlavors, newFlavor);
+    if (!result.added) {
+      // Map the helper's reasons to a single short message.
+      const messages = {
+        builtin: "Already in the built-in list.",
+        duplicate: "You've already added that tag.",
+        cap: `You can keep up to ${MAX_CUSTOM_FLAVORS} custom tags.`,
+        invalid: "Tags can't be empty or longer than 30 characters.",
+      };
+      setFlavorError(messages[result.reason] ?? "Couldn't add that tag.");
+      return;
+    }
+    setCustomFlavors(result.list);
+    saveCustom(result.list);
+    // Auto-select the brand-new tag so the user sees the effect immediately.
+    const justAdded = result.list[result.list.length - 1];
+    setFlavors((prev) => (prev.includes(justAdded) ? prev : [...prev, justAdded]));
+    setNewFlavor("");
+    setFlavorError(null);
+  };
+
+  // Deleting a custom tag also drops it from the current selection, otherwise
+  // the user sees a chip disappear while a "checked" value silently lingers.
+  const deleteCustomFlavor = (tag) => {
+    const next = removeCustom(customFlavors, tag);
+    setCustomFlavors(next);
+    saveCustom(next);
+    setFlavors((prev) => prev.filter((f) => f.toLowerCase() !== tag.toLowerCase()));
+  };
 
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
@@ -1208,11 +1293,77 @@ export default function BrewForm({
           <>
   {/* 07 Tasting */}
           <StepLabel mark="G" title="Tasting Notes" done={flavors.length > 0} />
-          <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex flex-wrap gap-2 mb-3">
             {FLAVORS.map((f) => (
               <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
             ))}
+            {customFlavors.map((f) => (
+              <CustomChip
+                key={f}
+                label={f}
+                active={flavors.includes(f)}
+                onClick={() => toggleFlavor(f)}
+                onRemove={() => deleteCustomFlavor(f)}
+              />
+            ))}
+            {/* Inline input — Enter or the + button commits. Sits at the end of
+                the chip row so it reads as "and here you can add more". */}
+            <div
+              className="flex items-center gap-1 rounded-full px-2 py-1"
+              style={{ border: `1px dashed ${TOKENS.rule}` }}
+            >
+              <input
+                type="text"
+                value={newFlavor}
+                onChange={(e) => {
+                  setNewFlavor(e.target.value);
+                  if (flavorError) setFlavorError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitCustomFlavor();
+                  } else if (e.key === "Backspace" && newFlavor === "") {
+                    // Backspace on an empty input: drop the last custom tag you
+                    // added in this session — a small undo affordance.
+                    if (customFlavors.length > 0) deleteCustomFlavor(customFlavors[customFlavors.length - 1]);
+                  }
+                }}
+                placeholder="Add tag…"
+                maxLength={30}
+                aria-label="New flavour tag"
+                className="bg-transparent outline-none text-[13px] w-24"
+                style={{ fontFamily: SERIF, color: TOKENS.ink }}
+              />
+              <button
+                type="button"
+                onClick={submitCustomFlavor}
+                disabled={!newFlavor.trim()}
+                aria-label="Add tag"
+                className="bl-press rounded-full p-0.5 disabled:opacity-30"
+                style={{ color: TOKENS.green }}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
+          {flavorError && (
+            <p
+              role="status"
+              className="text-[12px] mb-3"
+              style={{ fontFamily: SERIF, color: TOKENS.amber }}
+            >
+              {flavorError}
+            </p>
+          )}
+          {!flavorError && customFlavors.length >= MAX_CUSTOM_FLAVORS && (
+            <p
+              className="text-[11px] mb-3"
+              style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.06em" }}
+            >
+              {MAX_CUSTOM_FLAVORS}/{MAX_CUSTOM_FLAVORS} CUSTOM TAGS
+            </p>
+          )}
 
           <div className="flex items-center justify-between mb-5">
             <span

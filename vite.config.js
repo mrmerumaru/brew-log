@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -31,4 +32,10 @@ function environmentIcons() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), environmentIcons()],
+  test: {
+    // jsdom isn't needed yet — pure-helper tests use Node. Add jsdom only when
+    // a component test lands, so the suite stays cheap to run.
+    environment: 'node',
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })
