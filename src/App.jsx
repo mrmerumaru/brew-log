@@ -104,6 +104,13 @@ export default function App() {
     };
   }, [session, refreshKey]);
 
+  // Switching tabs (or starting an edit / repeat, which also flips the tab)
+  // takes you to a fresh view — start it at the top. Instant rather than
+  // smooth so it doesn't race the form's slide animation between steps.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [tab]);
+
   const shell = (children) => (
     <div
       style={{ background: TOKENS.paper, minHeight: "100vh" }}
