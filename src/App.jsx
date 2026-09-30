@@ -127,7 +127,17 @@ export default function App() {
     <>
       <div
         className="w-full max-w-[480px] flex items-center justify-between mb-6"
-        style={{ borderBottom: `1px solid ${TOKENS.rule}` }}
+        style={{
+          // Sticky so the tabs stay reachable when the History list is long —
+          // otherwise switching tabs requires scrolling all the way back up.
+          // Safe-area aware so the row sits below the notch on installed PWAs
+          // and at the very top in a browser tab.
+          position: "sticky",
+          top: "env(safe-area-inset-top, 0px)",
+          zIndex: 10,
+          background: TOKENS.paper,
+          borderBottom: `1px solid ${TOKENS.rule}`,
+        }}
       >
         <div className="flex">
           <Tab
