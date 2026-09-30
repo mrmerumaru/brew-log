@@ -7,6 +7,7 @@ import Insights from "./Insights";
 import { TOKENS, SANS, MONO } from "./tokens";
 import { suggestionsFrom } from "./brew";
 import { IS_PRODUCTION } from "./env";
+import { downloadExport } from "./exportData";
 
 // Columns the form needs for carry-forward and autocomplete, plus the two
 // Insights reads. Deliberately not `*` — notes and photo_path aren't used by
@@ -51,6 +52,11 @@ export default function App() {
   // its initial field values are right on first render rather than flashing
   // blank and then filling in.
   const [pastBrews, setPastBrews] = useState(undefined);
+
+  // Which format the Export button next to Sign out produces. JSON is the
+  // safer default — round-trippable and the user can convert to CSV in a
+  // spreadsheet if they want. Resets on reload (no localStorage).
+  const [exportFormat, setExportFormat] = useState("json");
 
   const startEdit = (brew, photoUrl) => {
     setSource({ mode: "edit", brew, photoUrl: photoUrl ?? null });
@@ -159,6 +165,51 @@ export default function App() {
           />
         </div>
         <div className="flex items-center gap-3 pb-2">
+          {/* Export. The toggle stays put across clicks so the choice is
+              persistent; only the Export button itself disables when there's
+              nothing to dump (still loading, or zero brews). */}
+          <div
+            className="bl-press rounded-full overflow-hidden flex"
+            style={{ border: `1px solid ${TOKENS.rule}` }}
+          >
+            {["json", "csv"].map((fmt) => (
+              <button
+                key={fmt}
+                type="button"
+                onClick={() => setExportFormat(fmt)}
+                aria-pressed={exportFormat === fmt}
+                className="px-2.5 py-1 text-[10px] uppercase tracking-[0.08em]"
+                style={{
+                  fontFamily: MONO,
+                  fontWeight: exportFormat === fmt ? 600 : 400,
+                  background: exportFormat === fmt ? TOKENS.greenSoft : "transparent",
+                  color: exportFormat === fmt ? TOKENS.green : TOKENS.inkFaint,
+                }}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => downloadExport(pastBrews ?? [], exportFormat)}
+            disabled={!pastBrews || pastBrews.length === 0}
+            className="bl-press bl-quiet text-[10px] uppercase tracking-[0.1em]"
+            style={{
+              fontFamily: MONO,
+              color: !pastBrews || pastBrews.length === 0 ? TOKENS.rule : TOKENS.inkFaint,
+              cursor: !pastBrews || pastBrews.length === 0 ? "default" : "pointer",
+            }}
+            title={
+              !pastBrews
+                ? "Loading…"
+                : pastBrews.length === 0
+                  ? "Log a brew first"
+                  : `Download all ${pastBrews.length} brews as ${exportFormat.toUpperCase()}`
+            }
+          >
+            Export
+          </button>
           {/* Both environments point at the same database and look identical,
               so the only way to tell them apart is to say so. */}
           {!IS_PRODUCTION && (
