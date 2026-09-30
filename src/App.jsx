@@ -132,7 +132,7 @@ export default function App() {
   return shell(
     <>
       <div
-        className="w-full max-w-[480px] flex items-center justify-between mb-6"
+        className="w-full max-w-[480px] mb-6"
         style={{
           // Sticky so the tabs stay reachable when the History list is long —
           // otherwise switching tabs requires scrolling all the way back up.
@@ -142,10 +142,10 @@ export default function App() {
           top: "env(safe-area-inset-top, 0px)",
           zIndex: 10,
           background: TOKENS.paper,
-          borderBottom: `1px solid ${TOKENS.rule}`,
         }}
       >
-        <div className="flex">
+        {/* Row 1: tabs. */}
+        <div className="flex items-center" style={{ borderBottom: `1px solid ${TOKENS.rule}` }}>
           <Tab
             label={editing ? "Editing" : "Log"}
             active={tab === "log"}
@@ -164,7 +164,9 @@ export default function App() {
             onClick={() => (editing ? finishEdit() : setTab("insights"))}
           />
         </div>
-        <div className="flex items-center gap-3 pb-2">
+        {/* Row 2: right-side controls. Split onto its own row so the format
+            toggle, Export, Dev badge and Sign out don't crowd the tabs. */}
+        <div className="flex items-center justify-end gap-3 py-2">
           {/* Export. The toggle stays put across clicks so the choice is
               persistent; only the Export button itself disables when there's
               nothing to dump (still loading, or zero brews). */}
