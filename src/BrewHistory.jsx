@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Coffee, Loader2, Pencil, RefreshCw, Repeat, Share2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Coffee, Loader2, Pencil, RefreshCw, Repeat, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
 import {
@@ -10,8 +10,10 @@ import {
   grindLabel,
   beansLabel,
   poursLabel,
+  originLabel,
 } from "./brew";
 import ShareSheet from "./ShareSheet";
+import { shouldExpand, tapCard, toggleExpandAll } from "./brewHistoryExpand";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
 
@@ -120,7 +122,120 @@ function Meta({ label, value }) {
   );
 }
 
-function BrewCard({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, deleting, sharing }) {
+function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={`${brew.drink || brew.method || "Brew"} — tap to ${expanded ? "collapse" : "expand"}`}
+      className="w-full text-left flex gap-3 p-3 items-center bl-press"
+    >
+      <div
+        className="shrink-0 rounded-sm overflow-hidden flex items-center justify-center"
+        style={{
+          width: 56,
+          height: 56,
+          background: TOKENS.paper,
+          border: `1px solid ${TOKENS.rule}`,
+        }}
+      >
+        {photoUrl ? (
+          <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Coffee size={16} style={{ color: TOKENS.rule }} />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3
+            className="text-[14px] truncate"
+            style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
+          >
+            {brew.drink || brew.method || "Brew"}
+          </h3>
+          <span
+            className="shrink-0 flex items-center gap-0.5"
+            aria-label={`${brew.rating ?? 0} of 5 cups`}
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Coffee
+                key={i}
+                size={11}
+                strokeWidth={i <= (brew.rating ?? 0) ? 2.4 : 1.8}
+                style={{ color: i <= (brew.rating ?? 0) ? TOKENS.amber : TOKENS.rule }}
+              />
+            ))}
+          </span>
+        </div>
+
+        <p
+          className="text-[12px] mt-0.5 truncate"
+          style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
+        >
+          {/* method first, then roastery, then origin. Truncate falls back to
+              "No bean recorded" so the line is never blank. */}
+          {[brew.method, brew.bean_name, originLabel(brew)]
+            .filter(Boolean)
+            .join(" · ") || "No bean recorded"}
+        </p>
+
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <div className="flex flex-wrap gap-1 min-w-0">
+            {brew.flavor_tags?.length > 0 ? (
+              brew.flavor_tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  className="px-1.5 py-0.5 rounded-full text-[10px] truncate max-w-[100px]"
+                  style={{
+                    fontFamily: SERIF,
+                    background: TOKENS.greenSoft,
+                    color: TOKENS.green,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span
+                className="text-[11px] italic"
+                style={{ fontFamily: SERIF, color: TOKENS.rule }}
+              >
+                No tasting notes
+              </span>
+            )}
+            {brew.flavor_tags?.length > 3 && (
+              <span
+                className="text-[10px]"
+                style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
+              >
+                +{brew.flavor_tags.length - 3}
+              </span>
+            )}
+          </div>
+          <span
+            className="shrink-0 text-[10px]"
+            style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.08em" }}
+          >
+            {formatDate(brew.created_at)}
+          </span>
+        </div>
+      </div>
+
+      <ChevronDown
+        size={14}
+        className="shrink-0 transition-transform"
+        style={{
+          color: TOKENS.inkFaint,
+          transform: expanded ? "rotate(180deg)" : "none",
+        }}
+      />
+    </button>
+  );
+}
+
+function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onToggle, deleting, sharing }) {
   const ratio = ratioOf(brew);
   const brewTime = formatBrewTime(brew.brew_time_s);
   // Relative to when this brew was made, not today — see daysOffRoast.
@@ -133,14 +248,7 @@ function BrewCard({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, deletin
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <li
-      className="bl-paper rounded-sm overflow-hidden"
-      style={{
-        background: TOKENS.card,
-        border: `1px solid ${TOKENS.rule}`,
-        boxShadow: "0 1px 2px rgba(32,29,26,0.04)",
-      }}
-    >
+    <div>
       <div className="flex gap-4 p-4">
         <div
           className="shrink-0 rounded-sm overflow-hidden flex items-center justify-center"
@@ -166,19 +274,15 @@ function BrewCard({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, deletin
             >
               {brew.drink || brew.method || "Brew"}
             </h3>
-            <span
-              className="shrink-0 flex items-center gap-0.5"
-              aria-label={`${brew.rating ?? 0} of 5 cups`}
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Collapse"
+              className="bl-press p-1"
+              style={{ color: TOKENS.inkFaint }}
             >
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Coffee
-                  key={i}
-                  size={13}
-                  strokeWidth={i <= (brew.rating ?? 0) ? 2.4 : 1.8}
-                  style={{ color: i <= (brew.rating ?? 0) ? TOKENS.amber : TOKENS.rule }}
-                />
-              ))}
-            </span>
+              <ChevronUp size={14} />
+            </button>
           </div>
 
           <p
@@ -341,6 +445,35 @@ function BrewCard({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, deletin
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BrewCard({ brew, photoUrl, expanded, onToggle, onEdit, onRepeat, onDelete, onShare, deleting, sharing }) {
+  return (
+    <li
+      className="bl-paper rounded-sm overflow-hidden"
+      style={{
+        background: TOKENS.card,
+        border: `1px solid ${TOKENS.rule}`,
+        boxShadow: "0 1px 2px rgba(32,29,26,0.04)",
+      }}
+    >
+      {expanded ? (
+        <ExpandedBrew
+          brew={brew}
+          photoUrl={photoUrl}
+          onEdit={onEdit}
+          onRepeat={onRepeat}
+          onDelete={onDelete}
+          onShare={onShare}
+          onToggle={onToggle}
+          deleting={deleting}
+          sharing={sharing}
+        />
+      ) : (
+        <CollapsedBrew brew={brew} photoUrl={photoUrl} onToggle={onToggle} expanded={expanded} />
+      )}
     </li>
   );
 }
@@ -357,6 +490,12 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
   const [method, setMethod] = useState(null);
   const [query, setQuery] = useState("");
   const [minRating, setMinRating] = useState(0);
+  // Accordion: which brew the user has explicitly opened. Null when nothing
+  // is open. Reset on reload — there's no value in remembering it.
+  const [expandedId, setExpandedId] = useState(null);
+  // "Expand all" overrides the per-card expandedId: every card renders
+  // expanded, with the chevron pointing up on each.
+  const [expandAll, setExpandAll] = useState(false);
 
   const filtersActive = Boolean(method) || query.trim() !== "" || minRating > 0;
 
@@ -563,15 +702,35 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
             ? `${visible.length} of ${brews.length} brews`
             : `${brews.length} ${brews.length === 1 ? "brew" : "brews"}`}
         </span>
-        <button
-          type="button"
-          onClick={load}
-          className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
-          style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
-        >
-          <RefreshCw size={11} />
-          Refresh
-        </button>
+        <span className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              const next = toggleExpandAll({ expandAll, expandedId });
+              setExpandAll(next.expandAll);
+              setExpandedId(next.expandedId);
+            }}
+            className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
+            style={{
+              fontFamily: MONO,
+              color: expandAll ? TOKENS.green : TOKENS.inkFaint,
+              letterSpacing: "0.1em",
+            }}
+            aria-pressed={expandAll}
+          >
+            {expandAll ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            {expandAll ? "Collapse all" : "Expand all"}
+          </button>
+          <button
+            type="button"
+            onClick={load}
+            className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
+            style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
+          >
+            <RefreshCw size={11} />
+            Refresh
+          </button>
+        </span>
       </div>
 
       {visible.length === 0 ? (
@@ -583,19 +742,28 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
         </p>
       ) : (
       <ul className="flex flex-col gap-3">
-        {visible.map((brew) => (
-          <BrewCard
-            key={brew.id}
-            brew={brew}
-            photoUrl={photoUrls[brew.photo_path]}
-            onEdit={onEdit}
-            onRepeat={onRepeat}
-            onDelete={handleDelete}
-            onShare={handleShare}
-            deleting={deletingId === brew.id}
-            sharing={sharingId === brew.id}
-          />
-        ))}
+        {visible.map((brew) => {
+          const expanded = shouldExpand({ expandAll, expandedId }, brew.id);
+          return (
+            <BrewCard
+              key={brew.id}
+              brew={brew}
+              photoUrl={photoUrls[brew.photo_path]}
+              expanded={expanded}
+              onToggle={() => {
+                const next = tapCard({ expandAll, expandedId }, brew.id);
+                setExpandAll(next.expandAll);
+                setExpandedId(next.expandedId);
+              }}
+              onEdit={onEdit}
+              onRepeat={onRepeat}
+              onDelete={handleDelete}
+              onShare={handleShare}
+              deleting={deletingId === brew.id}
+              sharing={sharingId === brew.id}
+            />
+          );
+        })}
       </ul>
       )}
 
