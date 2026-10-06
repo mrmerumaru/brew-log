@@ -1323,10 +1323,6 @@ export default function BrewForm({
                   if (e.key === "Enter") {
                     e.preventDefault();
                     submitCustomFlavor();
-                  } else if (e.key === "Backspace" && newFlavor === "") {
-                    // Backspace on an empty input: drop the last custom tag you
-                    // added in this session — a small undo affordance.
-                    if (customFlavors.length > 0) deleteCustomFlavor(customFlavors[customFlavors.length - 1]);
                   }
                 }}
                 placeholder="Add tag…"

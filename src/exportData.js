@@ -5,6 +5,8 @@
 // hour, which isn't useful in a saved file. A future "Export with photos"
 // can pull the blobs and bundle them; for now the export is small and instant.
 
+import { csvCell } from "./csvCell";
+
 const EXPORT_VERSION = 1;
 
 // Columns included in the CSV, in display order. Kept in one place so the JSON
@@ -113,16 +115,8 @@ export function brewsToExportCsv(rows) {
   return lines.join("\r\n") + "\r\n";
 }
 
-// RFC 4180: quote a cell when it contains `"`, `,`, `\r`, or `\n`. Inner quotes
-// are doubled. null/undefined become an empty cell.
-function csvCell(value) {
-  if (value == null) return "";
-  const s = typeof value === "string" ? value : String(value);
-  if (/[",\r\n]/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
+// csvCell lives in ./csvCell so its quoting and formula-injection rules can
+// be unit-tested without a browser. It's imported at the top of this file.
 
 export function downloadExport(rows, format) {
   const stamp = new Date().toISOString().slice(0, 10);
