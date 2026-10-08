@@ -14,6 +14,13 @@
 export const MAX_EDGE = 2000;
 export const JPEG_QUALITY = 0.82;
 
+// Thumbnail dimensions. History renders photos at 56-72px; 256-px source
+// covers those sizes at 2x retina without upscaling, and lands each file at
+// roughly 30-80 KB — about 10x smaller than MAX_EDGE — so a single page load
+// in History stops pulling tens of MB of photo bytes through the signed URL.
+export const THUMB_MAX_EDGE = 256;
+export const THUMB_QUALITY = 0.82;
+
 /** Scaled dimensions that fit inside maxEdge, never enlarging. Pure, for tests. */
 export function targetSize(width, height, maxEdge = MAX_EDGE) {
   const longest = Math.max(width, height);
@@ -62,6 +69,28 @@ async function decode(file) {
 }
 
 /**
+ * Encode an already-decoded source image to a JPEG blob at a target edge and
+ * quality. Pure-ish: depends on a canvas, but not on a File. Shared between
+ * compressPhoto (full-size, 2000px) and compressThumbnail (256px).
+ *
+ * @returns {Promise<Blob | null>} null if the browser fails to encode.
+ */
+async function encodeJpeg(source, width, height, quality) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  // JPEG has no alpha channel, so a transparent source (a PNG screenshot,
+  // say) would otherwise composite onto black.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(source, 0, 0, width, height);
+
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+/**
  * Resize and re-encode a photo for upload.
  *
  * Always resolves with something uploadable: if anything goes wrong — an
@@ -89,20 +118,7 @@ export async function compressPhoto(file, fallbackExt = "jpg") {
   try {
     const { width, height, scale } = targetSize(source.width, source.height);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-
-    // JPEG has no alpha channel, so a transparent source (a PNG screenshot,
-    // say) would otherwise composite onto black.
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(source, 0, 0, width, height);
-
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
-    );
+    const blob = await encodeJpeg(source, width, height, JPEG_QUALITY);
 
     if (!blob) return { ...original, note: "kept original: encode failed" };
 
@@ -122,6 +138,56 @@ export async function compressPhoto(file, fallbackExt = "jpg") {
     };
   } finally {
     // ImageBitmap holds decoded pixels until released; <img> has no close().
+    source.close?.();
+  }
+}
+
+/**
+ * Produce a small JPEG for the History list. Smaller than compressPhoto in
+ * every dimension (256px max edge vs 2000px, same quality 0.82) so a signed
+ * URL pointing here serves roughly 10x fewer bytes per photo.
+ *
+ * Same failure semantics as compressPhoto: returns the original file on any
+ * decode/encode error so a thumb failure can never block a brew from saving.
+ *
+ * @returns {Promise<{blob: Blob, ext: string, contentType: string, note: string}>}
+ */
+export async function compressThumbnail(file, fallbackExt = "jpg") {
+  const original = {
+    blob: file,
+    ext: fallbackExt,
+    contentType: file?.type || undefined,
+  };
+  if (!file) return null;
+
+  let source;
+  try {
+    source = await decode(file);
+  } catch {
+    return { ...original, note: "kept original: could not decode" };
+  }
+
+  try {
+    const { width, height, scale } = targetSize(
+      source.width,
+      source.height,
+      THUMB_MAX_EDGE,
+    );
+
+    const blob = await encodeJpeg(source, width, height, THUMB_QUALITY);
+
+    if (!blob) return { ...original, note: "kept original: encode failed" };
+
+    const pct = Math.round((1 - blob.size / file.size) * 100);
+    return {
+      blob,
+      ext: "jpg",
+      contentType: "image/jpeg",
+      note:
+        `${scale < 1 ? `resized to ${width}x${height}` : "re-encoded"}, ` +
+        `${kb(file.size)} to ${kb(blob.size)} (${pct}% smaller)`,
+    };
+  } finally {
     source.close?.();
   }
 }

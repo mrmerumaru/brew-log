@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Coffee, Loader2, Pencil, RefreshCw, Repeat, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET } from "./tokens";
+import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET, THUMB_BUCKET } from "./tokens";
 import {
   formatBrewTime,
   ratioOf,
@@ -14,6 +14,7 @@ import {
 } from "./brew";
 import ShareSheet from "./ShareSheet";
 import { shouldExpand, tapCard, toggleExpandAll } from "./brewHistoryExpand";
+import { thumbLookupPath } from "./brewPhoto";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
 
@@ -557,23 +558,44 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
     const rows = data ?? [];
     setBrews(rows);
 
-    // The brew-photos bucket is private, so a plain public URL 400s. Every
-    // thumbnail needs a short-lived signed URL; createSignedUrls does the whole
-    // page in one request instead of one per row.
-    const paths = rows.map((b) => b.photo_path).filter(Boolean);
-    if (paths.length > 0) {
-      const { data: signed, error: signError } = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+    // Each brew with a photo gets a signed URL for its thumbnail (in the
+    // brew-thumbs bucket) so History only pulls the small version at 56-72px
+    // instead of the full image. Rows without a thumb_path predate the
+    // thumbnail work; for those we fall back to the original photo_path so
+    // they keep showing.
+    const thumbRequests = rows
+      .map((b) => ({
+        path: thumbLookupPath(b),
+        bucket: b.thumb_path ? THUMB_BUCKET : PHOTO_BUCKET,
+      }))
+      .filter((r) => r.path);
 
-      if (!signError && signed) {
-        const map = {};
-        signed.forEach((entry) => {
-          if (entry.signedUrl && !entry.error) map[entry.path] = entry.signedUrl;
-        });
-        setPhotoUrls(map);
+    if (thumbRequests.length > 0) {
+      // Group by bucket — createSignedUrls only takes paths from one bucket
+      // per call. Old rows (no thumb_path) and new rows may coexist briefly.
+      const byBucket = new Map();
+      for (const r of thumbRequests) {
+        if (!byBucket.has(r.bucket)) byBucket.set(r.bucket, []);
+        byBucket.get(r.bucket).push(r.path);
       }
-      // A signing failure just means no thumbnails — the brew data still shows.
+
+      const map = {};
+      for (const [bucket, paths] of byBucket) {
+        const { data: signed, error: signError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+
+        if (signError || !signed) continue;
+
+        signed.forEach((entry) => {
+          if (entry.signedUrl && !entry.error) {
+            // Key by path so the consumer side can look up either bucket's
+            // URL via brew.thumb_path || brew.photo_path.
+            map[entry.path] = entry.signedUrl;
+          }
+        });
+      }
+      setPhotoUrls(map);
     } else {
       setPhotoUrls({});
     }
@@ -638,6 +660,20 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
         setDeleteError(
           `Brew deleted, but its photo is still in storage (${storageError.message}). ` +
             `If this keeps happening, run supabase/002-photo-delete-policy.sql.`,
+        );
+      }
+    }
+
+    // Same best-effort cleanup for the thumbnail in its own bucket.
+    if (brew.thumb_path) {
+      const { error: thumbError } = await supabase.storage
+        .from(THUMB_BUCKET)
+        .remove([brew.thumb_path]);
+
+      if (thumbError) {
+        setDeleteError(
+          `Brew deleted, but its thumbnail is still in storage (${thumbError.message}). ` +
+            `If this keeps happening, run supabase/003-thumb-path.sql.`,
         );
       }
     }
@@ -748,7 +784,7 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
             <BrewCard
               key={brew.id}
               brew={brew}
-              photoUrl={photoUrls[brew.photo_path]}
+              photoUrl={photoUrls[thumbLookupPath(brew)]}
               expanded={expanded}
               onToggle={() => {
                 const next = tapCard({ expandAll, expandedId }, brew.id);

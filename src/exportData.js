@@ -39,6 +39,7 @@ export const EXPORT_COLUMNS = [
   "rating",
   "notes",
   "photo_path",
+  "thumb_path",
 ];
 
 // `null` and `undefined` both flatten to `null` in the JSON, and to an empty

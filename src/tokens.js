@@ -109,3 +109,4 @@ export const FLAVORS = [
 ];
 
 export const PHOTO_BUCKET = "brew-photos";
+export const THUMB_BUCKET = "brew-thumbs";

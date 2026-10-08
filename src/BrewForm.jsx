@@ -25,6 +25,7 @@ import {
   ROASTS,
   FLAVORS,
   PHOTO_BUCKET,
+  THUMB_BUCKET,
 } from "./tokens";
 import {
   splitSeconds,
@@ -47,7 +48,7 @@ import {
 } from "./brew";
 import ShareSheet from "./ShareSheet";
 import { APP_ICON } from "./env";
-import { compressPhoto } from "./image";
+import { compressPhoto, compressThumbnail } from "./image";
 import {
   MAX_CUSTOM_FLAVORS,
   addCustom,
@@ -721,6 +722,41 @@ export default function BrewForm({
             setError(`${verb} and photo uploaded, but linking them failed: ${pathError.message}`);
             onSaved?.();
             return;
+          }
+        }
+
+        // Thumbnail goes into its own private bucket and is what History
+        // fetches via signed URL. Best-effort, not on the success path: a thumb
+        // failure shouldn't lose the brew — the History view will simply
+        // show the no-photo state until the brew is edited again.
+        const thumb = await compressThumbnail(photoFile, fileExtension(photoFile));
+        if (thumb) {
+          const thumbPath = `${user.id}/${row.id}.thumb.jpg`;
+          const { error: thumbError } = await supabase.storage
+            .from(THUMB_BUCKET)
+            .upload(thumbPath, thumb.blob, {
+              contentType: thumb.contentType,
+              upsert: true,
+            });
+
+          if (thumbError) {
+            // Original saved fine — just say so.
+            setError(`${verb} and photo saved, but the thumbnail didn't: ${thumbError.message}`);
+          } else {
+            const previousThumbPath = isEditing ? brew.thumb_path : null;
+            if (previousThumbPath && previousThumbPath !== thumbPath) {
+              await supabase.storage.from(THUMB_BUCKET).remove([previousThumbPath]);
+            }
+            if (thumbPath !== row.thumb_path) {
+              const { error: thumbPathError } = await supabase
+                .from("brews")
+                .update({ thumb_path: thumbPath })
+                .eq("id", row.id);
+
+              if (thumbPathError) {
+                setError(`${verb} and photo saved, but linking the thumbnail failed: ${thumbPathError.message}`);
+              }
+            }
           }
         }
       }
