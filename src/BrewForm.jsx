@@ -730,6 +730,7 @@ export default function BrewForm({
         // failure shouldn't lose the brew — the History view will simply
         // show the no-photo state until the brew is edited again.
         const thumb = await compressThumbnail(photoFile, fileExtension(photoFile));
+        console.info("Thumb upload:", thumb?.note ?? "no result");
         if (thumb) {
           const thumbPath = `${user.id}/${row.id}.thumb.jpg`;
           const { error: thumbError } = await supabase.storage
