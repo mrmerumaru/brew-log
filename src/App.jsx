@@ -10,10 +10,12 @@ import { IS_PRODUCTION } from "./env";
 import { downloadExport } from "./exportData";
 
 // Columns the form needs for carry-forward and autocomplete, plus the two
-// Insights reads. Deliberately not `*` — notes and photo_path aren't used by
-// either and would just add weight.
+// Insights reads, plus History (notes, photo_path, thumb_path). Deliberately
+// not `*` — anything not on this list is dropped. The set is the union of
+// every view's needs so App fetches once and all three views read from the
+// same list.
 const SETUP_COLUMNS =
-  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags";
+  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags,notes,photo_path,thumb_path";
 
 function Tab({ label, active, onClick }) {
   return (
@@ -262,7 +264,14 @@ export default function App() {
           />
         )
       ) : tab === "history" ? (
-        <BrewHistory refreshKey={refreshKey} onEdit={startEdit} onRepeat={startRepeat} />
+        <BrewHistory
+          brews={pastBrews ?? []}
+          isLoading={pastBrews === undefined}
+          setBrews={setPastBrews}
+          refreshKey={refreshKey}
+          onEdit={startEdit}
+          onRepeat={startRepeat}
+        />
       ) : (
         // Reuses the fetch above rather than querying again.
         <Insights brews={pastBrews ?? []} />

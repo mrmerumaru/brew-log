@@ -479,11 +479,19 @@ function BrewCard({ brew, photoUrl, expanded, onToggle, onEdit, onRepeat, onDele
   );
 }
 
-export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
-  const [brews, setBrews] = useState([]);
+export default function BrewHistory({
+  brews: brewsProp,
+  isLoading,
+  setBrews,
+  refreshKey,
+  onEdit,
+  onRepeat,
+}) {
+  // Brews come from App now — single fetch shared with the form and
+  // Insights. App passes setBrews so this view can still reflect a delete
+  // locally without a full refetch.
+  const brews = brewsProp ?? [];
   const [photoUrls, setPhotoUrls] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); // fetch failure — replaces the list
   const [deletingId, setDeletingId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
   const [shareTarget, setShareTarget] = useState(null); // { brew, photoBlob }
@@ -540,72 +548,58 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
   // not replace it, since everything else on screen is still valid.
   const [deleteError, setDeleteError] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    const { data, error: fetchError } = await supabase
-      .from("brews")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
-      setLoading(false);
-      return;
-    }
-
-    const rows = data ?? [];
-    setBrews(rows);
-
+  // Sign thumbnail URLs for the rows currently passed in. The rows themselves
+  // come from App — this effect only deals with the per-tab ephemeral state
+  // of "which photos have a fresh signed URL today".
+  const signThumbs = useCallback(async () => {
     // Each brew with a photo gets a signed URL for its thumbnail (in the
     // brew-thumbs bucket) so History only pulls the small version at 56-72px
     // instead of the full image. Rows without a thumb_path predate the
     // thumbnail work; for those we fall back to the original photo_path so
     // they keep showing.
-    const thumbRequests = rows
+    const thumbRequests = brews
       .map((b) => ({
         path: thumbLookupPath(b),
         bucket: b.thumb_path ? THUMB_BUCKET : PHOTO_BUCKET,
       }))
       .filter((r) => r.path);
 
-    if (thumbRequests.length > 0) {
-      // Group by bucket — createSignedUrls only takes paths from one bucket
-      // per call. Old rows (no thumb_path) and new rows may coexist briefly.
-      const byBucket = new Map();
-      for (const r of thumbRequests) {
-        if (!byBucket.has(r.bucket)) byBucket.set(r.bucket, []);
-        byBucket.get(r.bucket).push(r.path);
-      }
-
-      const map = {};
-      for (const [bucket, paths] of byBucket) {
-        const { data: signed, error: signError } = await supabase.storage
-          .from(bucket)
-          .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
-
-        if (signError || !signed) continue;
-
-        signed.forEach((entry) => {
-          if (entry.signedUrl && !entry.error) {
-            // Key by path so the consumer side can look up either bucket's
-            // URL via brew.thumb_path || brew.photo_path.
-            map[entry.path] = entry.signedUrl;
-          }
-        });
-      }
-      setPhotoUrls(map);
-    } else {
+    if (thumbRequests.length === 0) {
       setPhotoUrls({});
+      return;
     }
 
-    setLoading(false);
-  }, []);
+    // Group by bucket — createSignedUrls only takes paths from one bucket
+    // per call. Old rows (no thumb_path) and new rows may coexist briefly.
+    const byBucket = new Map();
+    for (const r of thumbRequests) {
+      if (!byBucket.has(r.bucket)) byBucket.set(r.bucket, []);
+      byBucket.get(r.bucket).push(r.path);
+    }
 
+    const map = {};
+    for (const [bucket, paths] of byBucket) {
+      const { data: signed, error: signError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+
+      if (signError || !signed) continue;
+
+      signed.forEach((entry) => {
+        if (entry.signedUrl && !entry.error) {
+          // Key by path so the consumer side can look up either bucket's
+          // URL via brew.thumb_path || brew.photo_path.
+          map[entry.path] = entry.signedUrl;
+        }
+      });
+    }
+    setPhotoUrls(map);
+  }, [brews]);
+
+  // Re-sign when the rows change or after a save (App bumps refreshKey).
   useEffect(() => {
-    load();
-  }, [load, refreshKey]);
+    if (!isLoading) signThumbs();
+  }, [signThumbs, isLoading, refreshKey]);
 
   // Fetch the photo, then hand off to ShareSheet for aspect choice and preview.
   const handleShare = useCallback(async (brew) => {
@@ -681,7 +675,7 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
     setDeletingId(null);
   }, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="flex items-center justify-center gap-2 py-16"
@@ -690,14 +684,6 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
         <Loader2 size={14} className="animate-spin" />
         Loading brews…
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <p className="py-16 text-center text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.red }}>
-        {error}
-      </p>
     );
   }
 
@@ -759,7 +745,7 @@ export default function BrewHistory({ refreshKey, onEdit, onRepeat }) {
           </button>
           <button
             type="button"
-            onClick={load}
+            onClick={signThumbs}
             className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
             style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
