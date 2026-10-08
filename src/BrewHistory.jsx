@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Coffee, Loader2, Pencil, RefreshCw, Repeat, Share2, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, MONO, SERIF, PHOTO_BUCKET, THUMB_BUCKET } from "./tokens";
@@ -14,7 +14,11 @@ import {
 } from "./brew";
 import ShareSheet from "./ShareSheet";
 import { shouldExpand, tapCard, toggleExpandAll } from "./brewHistoryExpand";
-import { thumbLookupPath } from "./brewPhoto";
+import {
+  thumbLookupPath,
+  lookupThumbUrl,
+  shouldSignOnLazy,
+} from "./brewPhoto";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
 
@@ -551,55 +555,100 @@ export default function BrewHistory({
   // Sign thumbnail URLs for the rows currently passed in. The rows themselves
   // come from App — this effect only deals with the per-tab ephemeral state
   // of "which photos have a fresh signed URL today".
-  const signThumbs = useCallback(async () => {
-    // Each brew with a photo gets a signed URL for its thumbnail (in the
-    // brew-thumbs bucket) so History only pulls the small version at 56-72px
-    // instead of the full image. Rows without a thumb_path predate the
-    // thumbnail work; for those we fall back to the original photo_path so
-    // they keep showing.
-    const thumbRequests = brews
-      .map((b) => ({
-        path: thumbLookupPath(b),
-        bucket: b.thumb_path ? THUMB_BUCKET : PHOTO_BUCKET,
-      }))
-      .filter((r) => r.path);
-
-    if (thumbRequests.length === 0) {
-      setPhotoUrls({});
-      return;
-    }
-
-    // Group by bucket — createSignedUrls only takes paths from one bucket
-    // per call. Old rows (no thumb_path) and new rows may coexist briefly.
-    const byBucket = new Map();
-    for (const r of thumbRequests) {
-      if (!byBucket.has(r.bucket)) byBucket.set(r.bucket, []);
-      byBucket.get(r.bucket).push(r.path);
-    }
-
-    const map = {};
-    for (const [bucket, paths] of byBucket) {
-      const { data: signed, error: signError } = await supabase.storage
+  //
+  // Lazy strategy: sign the first batch eagerly so the viewport never shows
+  // blank thumbnails, then IntersectionObserver signs more cards as they
+  // scroll into view. The visible-window padding (see shouldSignOnLazy)
+  // pre-signs a little ahead of the user so scrolling feels instant.
+  const signPath = useCallback(
+    async (path, bucket) => {
+      const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+        .createSignedUrls([path], SIGNED_URL_TTL_SECONDS);
 
-      if (signError || !signed) continue;
+      if (error || !data || !data[0]?.signedUrl || data[0]?.error) return;
 
-      signed.forEach((entry) => {
-        if (entry.signedUrl && !entry.error) {
-          // Key by path so the consumer side can look up either bucket's
-          // URL via brew.thumb_path || brew.photo_path.
-          map[entry.path] = entry.signedUrl;
-        }
-      });
-    }
-    setPhotoUrls(map);
-  }, [brews]);
+      const url = data[0].signedUrl;
+      setPhotoUrls((prev) => (prev[path] === url ? prev : { ...prev, [path]: url }));
+    },
+    [],
+  );
 
-  // Re-sign when the rows change or after a save (App bumps refreshKey).
+  // Visible-window tracking for the lazy signer. -1 means "no IO signal yet".
+  const [visibleWindow, setVisibleWindow] = useState({ lowest: -1, highest: -1 });
+
+  // Reset the URL cache when the row list shape changes (a save, a delete).
+  // refreshKey covers both, and a deep-equality check on the row ids keeps
+  // unrelated re-renders from blowing away a still-valid cache.
+  const rowIds = brews.map((b) => b.id).join("|");
   useEffect(() => {
-    if (!isLoading) signThumbs();
-  }, [signThumbs, isLoading, refreshKey]);
+    setPhotoUrls({});
+    setVisibleWindow({ lowest: -1, highest: -1 });
+  }, [rowIds, refreshKey]);
+
+  // Per-row ref collection. Keyed by index. The IO uses these to know which
+  // <li> is which when it fires.
+  const rowRefs = useRef(new Map());
+  const setRowRef = useCallback((idx, el) => {
+    if (el) rowRefs.current.set(idx, el);
+    else rowRefs.current.delete(idx);
+  }, []);
+
+  // Single IntersectionObserver watching every <li>. Re-created whenever
+  // the row list shape changes — when an <li> unmounts, the IO would still
+  // hold a reference to it otherwise.
+  useEffect(() => {
+    if (brews.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Each entry carries a data-idx attribute we wrote on the <li>.
+        // Track the min/max currently intersecting so the lazy rule has a
+        // single window to reason about.
+        const intersecting = entries
+          .filter((e) => e.isIntersecting)
+          .map((e) => Number(e.target.dataset.idx))
+          .filter((n) => Number.isFinite(n));
+
+        if (intersecting.length === 0) return;
+
+        setVisibleWindow((prev) => {
+          const allVisible = [...prev.allVisible ?? []];
+          // Add this batch; we'll trim entries that have unmounted below.
+          for (const i of intersecting) if (!allVisible.includes(i)) allVisible.push(i);
+          if (allVisible.length === 0) return prev;
+          const lowest = Math.min(...allVisible);
+          const highest = Math.max(...allVisible);
+          if (lowest === prev.lowest && highest === prev.highest) return prev;
+          return { lowest, highest, allVisible };
+        });
+      },
+      {
+        // rootMargin so we sign a little before each card reaches the
+        // viewport — keeps scrolling smooth without a long prefetch.
+        rootMargin: "0px 0px 200px 0px",
+        threshold: 0,
+      },
+    );
+
+    for (const [idx, el] of rowRefs.current) observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [brews.length, rowIds]);
+
+  // Reactively sign any brew whose index falls inside the visible window
+  // and isn't yet cached. Triggered by visibleWindow changes.
+  useEffect(() => {
+    if (isLoading) return;
+    for (let i = 0; i < brews.length; i++) {
+      if (!shouldSignOnLazy(i, visibleWindow.highest, visibleWindow.lowest)) continue;
+      const brew = brews[i];
+      const path = thumbLookupPath(brew);
+      if (!path) continue;
+      if (photoUrls[path]) continue;
+      signPath(path, brew.thumb_path ? THUMB_BUCKET : PHOTO_BUCKET);
+    }
+  }, [visibleWindow, brews, photoUrls, signPath, isLoading]);
 
   // Fetch the photo, then hand off to ShareSheet for aspect choice and preview.
   const handleShare = useCallback(async (brew) => {
@@ -745,7 +794,13 @@ export default function BrewHistory({
           </button>
           <button
             type="button"
-            onClick={signThumbs}
+            onClick={() => {
+              // Force a fresh sign of everything currently visible. Used when
+              // the user thinks their thumbnails are stale (a 401 from a
+              // signed-URL expiry, etc.). The cache reset triggers the
+              // reactive signer on its next render.
+              setPhotoUrls({});
+            }}
             className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
             style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
@@ -764,26 +819,34 @@ export default function BrewHistory({
         </p>
       ) : (
       <ul className="flex flex-col gap-3">
-        {visible.map((brew) => {
+        {visible.map((brew, idx) => {
           const expanded = shouldExpand({ expandAll, expandedId }, brew.id);
           return (
-            <BrewCard
+            // The outer div is the IntersectionObserver sentinel, with the
+            // row index baked in as a data attribute so the IO callback can
+            // resolve back to the brew. The card itself remains the <li>.
+            <div
               key={brew.id}
-              brew={brew}
-              photoUrl={photoUrls[thumbLookupPath(brew)]}
-              expanded={expanded}
-              onToggle={() => {
-                const next = tapCard({ expandAll, expandedId }, brew.id);
-                setExpandAll(next.expandAll);
-                setExpandedId(next.expandedId);
-              }}
-              onEdit={onEdit}
-              onRepeat={onRepeat}
-              onDelete={handleDelete}
-              onShare={handleShare}
-              deleting={deletingId === brew.id}
-              sharing={sharingId === brew.id}
-            />
+              data-idx={idx}
+              ref={(el) => setRowRef(idx, el)}
+            >
+              <BrewCard
+                brew={brew}
+                photoUrl={lookupThumbUrl(photoUrls, brew)}
+                expanded={expanded}
+                onToggle={() => {
+                  const next = tapCard({ expandAll, expandedId }, brew.id);
+                  setExpandAll(next.expandAll);
+                  setExpandedId(next.expandedId);
+                }}
+                onEdit={onEdit}
+                onRepeat={onRepeat}
+                onDelete={handleDelete}
+                onShare={handleShare}
+                deleting={deletingId === brew.id}
+                sharing={sharingId === brew.id}
+              />
+            </div>
           );
         })}
       </ul>

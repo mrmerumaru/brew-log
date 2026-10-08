@@ -12,3 +12,40 @@ export function thumbLookupPath(brew) {
   if (!brew) return null;
   return brew.thumb_path || brew.photo_path || null;
 }
+
+/**
+ * Look up a signed URL for a brew's thumbnail path. Returns null when
+ * nothing has been signed yet — the caller renders the no-photo
+ * placeholder until IntersectionObserver signs it.
+ */
+export function lookupThumbUrl(photoUrlCache, brew) {
+  const path = thumbLookupPath(brew);
+  if (!path) return null;
+  return photoUrlCache[path] ?? null;
+}
+
+/**
+ * Decide whether a brew at index i should be signed right now. Used after the
+ * initial pass: once we've signed the first batch eagerly, this returns true
+ * for any brew whose index falls inside the current "visible window plus a
+ * small lookahead" window, false otherwise.
+ *
+ * @param {number} index
+ * @param {number} highestVisibleIndex   - largest index currently intersecting the IO (-1 if none)
+ * @param {number} lowestVisibleIndex    - smallest index currently intersecting the IO (-1 if none)
+ * @param {number} windowPadding         - how many cards past each end to keep signed (default 4)
+ */
+export function shouldSignOnLazy(
+  index,
+  highestVisibleIndex,
+  lowestVisibleIndex,
+  windowPadding = 4,
+) {
+  if (highestVisibleIndex < 0 || lowestVisibleIndex < 0) {
+    return index <= windowPadding;
+  }
+  return (
+    index >= lowestVisibleIndex - windowPadding &&
+    index <= highestVisibleIndex + windowPadding
+  );
+}
