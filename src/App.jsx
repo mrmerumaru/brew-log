@@ -17,6 +17,14 @@ import { downloadExport } from "./exportData";
 const SETUP_COLUMNS =
   "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags,notes,photo_path,thumb_path";
 
+// Suggestions only need a handful of text fields. Keeping this projection
+// separate from SETUP_COLUMNS means we don't fetch notes, photos, dosing
+// numbers, etc. for every brew every time we open the form — the autocomplete
+// list runs on the small set, the form's initial values and History's data
+// run on the full one.
+const SUGGESTIONS_COLUMNS =
+  "drink,method,machine_brand,machine_model,grinder,grind_unit,bean_name,blend_components,origin,milk_brand,milk_type";
+
 function Tab({ label, active, onClick }) {
   return (
     <button
@@ -54,6 +62,10 @@ export default function App() {
   // its initial field values are right on first render rather than flashing
   // blank and then filling in.
   const [pastBrews, setPastBrews] = useState(undefined);
+  // Same idea, smaller projection — only the columns the form's autocomplete
+  // reads. Falls back to pastBrews when the small fetch fails so the user
+  // never loses their suggestions because of a transient error.
+  const [suggestionsBrews, setSuggestionsBrews] = useState(undefined);
 
   // Which format the Export button next to Sign out produces. JSON is the
   // safer default — round-trippable and the user can convert to CSV in a
@@ -95,18 +107,35 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setPastBrews(undefined);
+      setSuggestionsBrews(undefined);
       return;
     }
     let cancelled = false;
-    supabase
-      .from("brews")
-      .select(SETUP_COLUMNS)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        // A failure here only costs autocomplete, so fall back to "no history"
-        // rather than blocking the form behind an error.
-        if (!cancelled) setPastBrews(data ?? null);
-      });
+
+    // Both fetches run in parallel. pastBrews carries every view's data;
+    // suggestionsBrews carries just the autocomplete projection. A failure
+    // on either only costs the affected feature — autocomplete falls back
+    // to deriving from the full set, the form/Insights wait on pastBrews.
+    Promise.all([
+      supabase
+        .from("brews")
+        .select(SETUP_COLUMNS)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => data ?? null),
+      supabase
+        .from("brews")
+        .select(SUGGESTIONS_COLUMNS)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => data ?? null),
+    ]).then(([full, small]) => {
+      if (cancelled) return;
+      setPastBrews(full);
+      // null from the small fetch is treated as "use the big set as a
+      // fallback" by leaving suggestionsBrews undefined; suggestionsFrom
+      // accepts any array.
+      setSuggestionsBrews(small ?? full);
+    });
+
     return () => {
       cancelled = true;
     };
@@ -258,7 +287,7 @@ export default function App() {
               source?.mode === "repeat" ? source.brew : (pastBrews?.[0] ?? null)
             }
             repeating={source?.mode === "repeat"}
-            suggestions={suggestionsFrom(pastBrews ?? [])}
+            suggestions={suggestionsFrom(suggestionsBrews ?? pastBrews ?? [])}
             onSaved={() => setRefreshKey((k) => k + 1)}
             onExitEdit={finishEdit}
           />
