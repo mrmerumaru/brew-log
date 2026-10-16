@@ -41,6 +41,7 @@ import {
   percentTotal,
   BLANK_COMPONENT,
   MAX_BLEND_COMPONENTS,
+  pickCarryForward,
   fileExtension,
   num,
   dateOrNull,
@@ -140,6 +141,44 @@ function carriedForwardFrom(brew) {
     rating: DEFAULTS.rating,
     notes: "",
   };
+}
+
+// Pull just the equipment + bean fields out of a form state. Used by the
+// "switch method" effect, which has to swap these without touching the
+// drink name, brew parameters, milk, or per-cup values.
+const CARRY_KEYS = [
+  "machineBrand",
+  "machineModel",
+  "grinder",
+  "grindSize",
+  "grindUnit",
+  "beanName",
+  "beanType",
+  "components",
+  "origin",
+  "process",
+  "roast",
+];
+function carriedFromBrew(brew) {
+  if (!brew) {
+    return {
+      machineBrand: DEFAULTS.machineBrand,
+      machineModel: DEFAULTS.machineModel,
+      grinder: DEFAULTS.grinder,
+      grindSize: DEFAULTS.grindSize,
+      grindUnit: DEFAULTS.grindUnit,
+      beanName: DEFAULTS.beanName,
+      beanType: DEFAULTS.beanType,
+      components: DEFAULTS.components,
+      origin: DEFAULTS.origin,
+      process: DEFAULTS.process,
+      roast: DEFAULTS.roast,
+    };
+  }
+  const full = carriedForwardFrom(brew);
+  const out = {};
+  for (const k of CARRY_KEYS) out[k] = full[k];
+  return out;
 }
 
 // A ruled band with a lettered mark, the way a printed form divides itself.
@@ -343,20 +382,36 @@ function Divider() {
 export default function BrewForm({
   brew = null,
   initialPhotoUrl = null,
-  previousBrew = null,
-  // True when previousBrew is a brew picked out of history rather than simply
-  // the most recent one — only changes what the banner says.
+  // Full list of past brews, newest-first. The form looks up the carry-
+  // forward source itself, so when the user changes the method on step 1
+  // the equipment + bean fields re-derive from the most recent brew with
+  // that method. Pass `[]` when there's no history yet.
+  pastBrews = [],
+  // When the user clicks "repeat" on a history row, the form should pin
+  // its values to that specific row rather than re-derive from the most
+  // recent brew of the chosen method. Pass that row here.
+  repeatFrom = null,
+  // True when the user explicitly picked a row from history to repeat
+  // (rather than landing here for a brand-new brew) — only changes what
+  // the banner says. Belt-and-suspenders alongside `repeatFrom`.
   repeating = false,
   suggestions = {},
   onSaved,
   onExitEdit,
 }) {
   const isEditing = Boolean(brew);
+  // For a new brew the user hasn't picked a method yet, so seed the
+  // carry-forward with the most recent brew of any method. The form then
+  // re-derives equipment + beans whenever the method actually changes.
+  // When repeating from history, pin to that exact row instead.
   const init = isEditing
     ? formStateFromBrew(brew)
-    : previousBrew
-      ? carriedForwardFrom(previousBrew)
-      : DEFAULTS;
+    : repeatFrom
+      ? carriedForwardFrom(repeatFrom)
+      : (() => {
+          const seed = pickCarryForward(pastBrews, pastBrews[0]?.method);
+          return seed ? carriedForwardFrom(seed) : DEFAULTS;
+        })();
 
   const [drink, setDrink] = useState(init.drink);
   const [methodChoice, setMethodChoice] = useState(init.methodChoice);
@@ -404,13 +459,69 @@ export default function BrewForm({
   const [sharing, setSharing] = useState(false);
   // Whether the fields on screen came from a previous brew rather than being
   // typed fresh — drives the "carried over" banner.
-  const [carried, setCarried] = useState(!isEditing && Boolean(previousBrew));
+  const [carried, setCarried] = useState(
+    !isEditing && (Boolean(repeatFrom) || pastBrews.length > 0),
+  );
   // Goes false after a save: from then on the values on screen came from the
   // brew just logged, not from the one picked out of history.
   const [fromRepeat, setFromRepeat] = useState(!isEditing && repeating);
 
   const fileInputRef = useRef(null);
   const savedTimerRef = useRef(null);
+
+  // The currently-derived "method" string the form is showing. Same shape
+  // as the `method` value computed later in the component body. When this
+  // changes (user picks a different method on step 1, or types a custom
+  // method), look up the most recent brew with that method and swap the
+  // equipment + bean fields. Skip on first mount (state already holds
+  // the seeded values) and when editing an existing brew (the row is the
+  // source of truth).
+  const methodForCarry = (methodChoice === METHOD_OTHER
+    ? customMethod.trim() || METHOD_OTHER
+    : methodChoice);
+  // Map of "carry key" -> "setter that updates that key". Kept as a ref so
+  // the effect doesn't have to re-bind when any setter changes identity.
+  const settersRef = useRef({});
+  settersRef.current = {
+    setMachineBrand,
+    setMachineModel,
+    setGrinder,
+    setGrindSize,
+    setGrindUnit,
+    setBeanName,
+    setBeanType,
+    setComponents,
+    setOrigin,
+    setProcess,
+    setRoast,
+  };
+  const pastBrewsRef = useRef(pastBrews);
+  pastBrewsRef.current = pastBrews;
+  // Track the method we last re-derived for, so we don't re-derive on
+  // initial render (the seed in `init` already did that work).
+  const prevMethodRef = useRef(methodForCarry);
+  useEffect(() => {
+    if (isEditing || repeating) return;
+    if (prevMethodRef.current === methodForCarry) return;
+    prevMethodRef.current = methodForCarry;
+    const source = pickCarryForward(pastBrewsRef.current, methodForCarry);
+    // If the helper fell back to a brew whose method doesn't match the
+    // one the user just picked (they're switching to a method they've
+    // never brewed), clear the equipment + bean fields so they don't
+    // carry over a different method's gear and beans.
+    const carried = (source && source.method === methodForCarry)
+      ? carriedFromBrew(source)
+      : carriedFromBrew(null);
+    for (const k of CARRY_KEYS) {
+      settersRef.current[`set${k[0].toUpperCase()}${k.slice(1)}`](carried[k]);
+    }
+    setCarried(Boolean(source) && source.method === methodForCarry);
+    // We intentionally don't depend on pastBrews. After a save the new
+    // row gets prepended to the list, but a re-derivation against the
+    // freshly-saved brew would wipe whatever the user is currently
+    // typing on the next brew form. The ref reads the latest list
+    // without triggering the effect.
+  }, [methodForCarry, isEditing, repeating]);
 
   // Your own drinks first (most recent first, from suggestionsFrom), then the
   // starter list for anything you haven't logged yet.

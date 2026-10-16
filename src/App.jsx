@@ -283,9 +283,8 @@ export default function App() {
             key={source ? `${source.mode}-${source.brew.id}` : "new"}
             brew={editing?.brew ?? null}
             initialPhotoUrl={editing?.photoUrl ?? null}
-            previousBrew={
-              source?.mode === "repeat" ? source.brew : (pastBrews?.[0] ?? null)
-            }
+            pastBrews={pastBrews ?? []}
+            repeatFrom={source?.mode === "repeat" ? source.brew : null}
             repeating={source?.mode === "repeat"}
             suggestions={suggestionsFrom(suggestionsBrews ?? pastBrews ?? [])}
             onSaved={() => setRefreshKey((k) => k + 1)}

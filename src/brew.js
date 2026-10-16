@@ -286,6 +286,25 @@ export function suggestionsFrom(rows = []) {
   return out;
 }
 
+// Pick which brew the form should pre-fill from. New brews are usually the
+// same setup as the last one, but the "last one" shouldn't mean "the most
+// recent by created_at regardless of method" — that breaks the day a user
+// alternates between Espresso and Pourover, where the Espresso equipment
+// would land in the Pourover form.
+//
+// Pass the method the user is about to brew (or null/empty for "I don't
+// know yet" — falls back to the most recent of any method). The list is
+// assumed to be ordered newest-first, which is what App.jsx already passes
+// in.
+export function pickCarryForward(brews, method) {
+  if (!Array.isArray(brews) || brews.length === 0) return null;
+  if (!method) return brews[0];
+  const match = brews.find(
+    (b) => b && typeof b.method === "string" && b.method === method,
+  );
+  return match ?? brews[0];
+}
+
 // Object URLs need revoking; remote signed URLs must be left alone. When
 // editing, the preview starts as a signed URL from Storage and only becomes a
 // blob: URL if the user picks a replacement file.
