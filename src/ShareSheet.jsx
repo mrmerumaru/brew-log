@@ -167,7 +167,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       aria-label="Share brew"
     >
       <div
-        className="w-full max-w-[380px] max-h-full overflow-y-auto rounded-sm"
+        className="w-full max-w-[380px] max-h-full flex flex-col rounded-sm overflow-hidden"
         style={{ background: TOKENS.card, border: `1px solid ${TOKENS.rule}` }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -175,7 +175,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             stays reachable once the preview pushes the content past one
             screen. */}
         <div
-          className="px-5 py-4 flex items-center justify-between sticky top-0 z-10"
+          className="px-5 py-4 flex items-center justify-between shrink-0"
           style={{ borderBottom: `1px solid ${TOKENS.rule}`, background: TOKENS.card }}
         >
           <span
@@ -195,7 +195,10 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
           </button>
         </div>
 
-        <div className="px-5 py-5">
+        {/* The scroll region. Everything between here and the footer can
+            overflow; the footer is pinned so the Share button is always
+            reachable without scrolling. */}
+        <div className="px-5 py-5 overflow-y-auto flex-1 min-h-0">
           <div className="flex gap-2 mb-4">
             {RATIO_KEYS.map((key) => {
               const active = key === ratio;
@@ -234,10 +237,15 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             })}
           </div>
 
-          {/* Reserve the exact aspect so switching doesn't make the dialog jump. */}
+          {/* Reserve the exact aspect so switching doesn't make the dialog jump.
+              The width is capped so the tallest card (9:16) still fits on one
+              screen: the cap converts to a width via the card's own ratio, so
+              the height can never exceed it and the preview is never
+              distorted. */}
           <div
-            className="w-full mb-3 flex items-center justify-center overflow-hidden rounded-sm"
+            className="w-full mb-3 flex items-center justify-center overflow-hidden rounded-sm mx-auto"
             style={{
+              width: `min(100%, calc(min(52vh, 560px) * ${cardW} / ${cardH}))`,
               aspectRatio: `${cardW} / ${cardH}`,
               background: TOKENS.paper,
               border: `1px solid ${TOKENS.rule}`,
@@ -254,9 +262,11 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                 onPointerCancel={endDrag}
                 className="w-full h-full"
                 style={{
-                  // touchAction none stops the browser scrolling the dialog
-                  // while a drag is in progress.
-                  touchAction: img ? "none" : "auto",
+                  // Only claim the gesture when the photo can actually move.
+                  // Otherwise a drag on the card would pan the photo instead
+                  // of scrolling the sheet, which is what made the Share
+                  // button feel unreachable on a phone.
+                  touchAction: canPan ? "none" : "auto",
                   cursor: canPan ? "grab" : "default",
                 }}
               />
@@ -312,6 +322,29 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             </p>
           )}
 
+          {error && (
+            <p
+              className="mb-4 text-[14px]"
+              style={{ fontFamily: SERIF, color: TOKENS.red }}
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
+
+          {notice && (
+            <p className="mb-4 text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
+              {notice}
+            </p>
+          )}
+        </div>
+
+        {/* Pinned footer — the Share button stays reachable no matter how tall
+            the preview is or how far the sheet has been scrolled. */}
+        <div
+          className="px-5 py-4 shrink-0"
+          style={{ borderTop: `1px solid ${TOKENS.rule}`, background: TOKENS.card }}
+        >
           <button
             type="button"
             onClick={handleSend}
@@ -329,22 +362,6 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             {sending && <Loader2 size={13} className="animate-spin" />}
             {sending ? "Sharing…" : "Share this card"}
           </button>
-
-          {error && (
-            <p
-              className="mt-3 text-[14px]"
-              style={{ fontFamily: SERIF, color: TOKENS.red }}
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-
-          {notice && (
-            <p className="mt-3 text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
-              {notice}
-            </p>
-          )}
         </div>
       </div>
     </div>
