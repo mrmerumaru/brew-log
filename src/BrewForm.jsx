@@ -19,6 +19,7 @@ import {
   BEAN_TYPES,
   DRINKS,
   GRIND_UNITS,
+  MICRO_ADJUSTMENT_UNITS,
   MILK_TYPES,
   METHODS,
   PROCESSES,
@@ -46,6 +47,7 @@ import {
   BLANK_COMPONENT,
   MAX_BLEND_COMPONENTS,
   pickCarryForward,
+  microAdjustmentState,
   fileExtension,
   num,
   dateOrNull,
@@ -71,6 +73,8 @@ const DEFAULTS = {
   grinder: "",
   grindSize: "",
   grindUnit: "",
+  microAdjustment: "",
+  microAdjustmentUnit: "",
   beanName: "",
   beanType: "",
   components: [{ ...BLANK_COMPONENT }, { ...BLANK_COMPONENT }],
@@ -118,6 +122,7 @@ function formStateFromBrew(brew) {
     grinder: brew.grinder ?? "",
     grindSize: brew.grind_size == null ? "" : String(brew.grind_size),
     grindUnit: brew.grind_unit ?? "",
+    ...microAdjustmentState(brew),
     beanName: brew.bean_name ?? "",
     beanType: brew.bean_type ?? "",
     components: componentsFromBrew(brew),
@@ -161,6 +166,8 @@ const CARRY_KEYS = [
   "grinder",
   "grindSize",
   "grindUnit",
+  "microAdjustment",
+  "microAdjustmentUnit",
   "beanName",
   "beanType",
   "components",
@@ -176,6 +183,8 @@ function carriedFromBrew(brew) {
       grinder: DEFAULTS.grinder,
       grindSize: DEFAULTS.grindSize,
       grindUnit: DEFAULTS.grindUnit,
+      microAdjustment: DEFAULTS.microAdjustment,
+      microAdjustmentUnit: DEFAULTS.microAdjustmentUnit,
       beanName: DEFAULTS.beanName,
       beanType: DEFAULTS.beanType,
       components: DEFAULTS.components,
@@ -430,6 +439,10 @@ export default function BrewForm({
   const [grinder, setGrinder] = useState(init.grinder);
   const [grindSize, setGrindSize] = useState(init.grindSize);
   const [grindUnit, setGrindUnit] = useState(init.grindUnit);
+  const [microAdjustment, setMicroAdjustment] = useState(init.microAdjustment);
+  const [microAdjustmentUnit, setMicroAdjustmentUnit] = useState(
+    init.microAdjustmentUnit,
+  );
   const [beanName, setBeanName] = useState(init.beanName);
   const [beanType, setBeanType] = useState(init.beanType);
   const [components, setComponents] = useState(init.components);
@@ -624,6 +637,15 @@ export default function BrewForm({
     return [...mine, ...GRIND_UNITS.filter((u) => !seen.has(u.toLowerCase()))];
   }, [suggestions.grindUnit]);
 
+  const microAdjustmentUnitSuggestions = useMemo(() => {
+    const mine = suggestions.microAdjustmentUnit ?? [];
+    const seen = new Set(mine.map((u) => u.toLowerCase()));
+    return [
+      ...mine,
+      ...MICRO_ADJUSTMENT_UNITS.filter((u) => !seen.has(u.toLowerCase())),
+    ];
+  }, [suggestions.microAdjustmentUnit]);
+
   const milkTypeSuggestions = useMemo(() => {
     const mine = suggestions.milkType ?? [];
     const seen = new Set(mine.map((d) => d.toLowerCase()));
@@ -704,6 +726,8 @@ export default function BrewForm({
     setGrinder(s.grinder);
     setGrindSize(s.grindSize);
     setGrindUnit(s.grindUnit);
+    setMicroAdjustment(s.microAdjustment);
+    setMicroAdjustmentUnit(s.microAdjustmentUnit);
     setBeanName(s.beanName);
     setBeanType(s.beanType);
     setComponents(s.components);
@@ -775,6 +799,10 @@ export default function BrewForm({
         grinder,
         grind_size: num(grindSize),
         grind_unit: grindUnit,
+        // Optional: null when the user leaves it blank, so "no micro-adjustment
+        // on this grinder" stays distinguishable from "adjusted by zero".
+        micro_adjustment: num(microAdjustment),
+        micro_adjustment_unit: microAdjustmentUnit || null,
         // null rather than "" so "not recorded" stays distinguishable.
         bean_type: beanType || null,
         // The roastery applies to the whole bag, blend or not, so bean_name is
@@ -1265,6 +1293,24 @@ export default function BrewForm({
               onChange={setGrinder}
               placeholder="Comandante C40"
               suggestions={suggestions.grinder}
+            />
+            {/* The fine-tune dial on the side of the grinder. Optional, and on
+                its own scale — the base setting and the micro-adjustment can
+                count in different units on the same grinder. */}
+            <Field
+              label="Micro-adjust"
+              value={microAdjustment}
+              onChange={setMicroAdjustment}
+              placeholder="+3"
+              mono
+              inputMode="decimal"
+            />
+            <Field
+              label="Micro unit"
+              value={microAdjustmentUnit}
+              onChange={setMicroAdjustmentUnit}
+              placeholder="clicks"
+              suggestions={microAdjustmentUnitSuggestions}
             />
           </div>
           </>

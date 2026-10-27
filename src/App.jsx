@@ -15,7 +15,7 @@ import { downloadExport } from "./exportData";
 // every view's needs so App fetches once and all three views read from the
 // same list.
 const SETUP_COLUMNS =
-  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags,notes,photo_path,thumb_path";
+  "id,created_at,drink,method,machine_brand,machine_model,grinder,bean_name,bean_type,blend_components,origin,process,roast_level,roast_date,milk_brand,milk_type,grind_size,grind_unit,micro_adjustment,micro_adjustment_unit,dose_g,water_g,water_temp_c,brew_time_s,pours,rating,flavor_tags,notes,photo_path,thumb_path";
 
 // Suggestions only need a handful of text fields. Keeping this projection
 // separate from SETUP_COLUMNS means we don't fetch notes, photos, dosing
@@ -23,7 +23,7 @@ const SETUP_COLUMNS =
 // list runs on the small set, the form's initial values and History's data
 // run on the full one.
 const SUGGESTIONS_COLUMNS =
-  "drink,method,machine_brand,machine_model,grinder,grind_unit,bean_name,blend_components,origin,milk_brand,milk_type";
+  "drink,method,machine_brand,machine_model,grinder,grind_unit,micro_adjustment_unit,bean_name,blend_components,origin,milk_brand,milk_type";
 
 function Tab({ label, active, onClick }) {
   return (

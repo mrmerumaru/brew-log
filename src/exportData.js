@@ -21,6 +21,8 @@ export const EXPORT_COLUMNS = [
   "grinder",
   "grind_size",
   "grind_unit",
+  "micro_adjustment",
+  "micro_adjustment_unit",
   "bean_name",
   "bean_type",
   "origin",

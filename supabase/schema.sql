@@ -16,6 +16,10 @@ create table if not exists brews (
   grinder       text,
   grind_size    numeric,        -- value on your grinder's own scale
   grind_unit    text,           -- clicks, numbers, rotations, microns…
+  -- The fine-tune dial on the side of an espresso grinder: a small offset
+  -- from the base setting. Optional — most grinders don't have one.
+  micro_adjustment     numeric,
+  micro_adjustment_unit text,   -- clicks by default, but it's the grinder's own scale
   bean_name     text,
   bean_type     text,           -- Single Origin or Blend
   -- Blend only: [{name, origin, process, percent}, …]. Null for single origin.

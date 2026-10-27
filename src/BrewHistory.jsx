@@ -8,6 +8,7 @@ import {
   daysOffRoast,
   milkLabel,
   grindLabel,
+  microAdjustLabel,
   beansLabel,
   poursLabel,
   originLabel,
@@ -247,6 +248,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
   const rest = daysOffRoast(brew.roast_date, brew.created_at);
   const milk = milkLabel(brew);
   const grind = grindLabel(brew);
+  const microAdjust = microAdjustLabel(brew);
   const pours = poursLabel(brew);
   // Deleting is irreversible, so the trash icon arms a confirm rather than
   // firing straight away.
@@ -317,6 +319,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
             <Meta label="TIME" value={brewTime} />
             <Meta label="BEANS" value={brew.bean_type} />
             <Meta label="GRIND" value={grind} />
+            <Meta label="MICRO" value={microAdjust} />
             <Meta label="OFF ROAST" value={rest == null ? null : `${rest}d`} />
           </div>
 

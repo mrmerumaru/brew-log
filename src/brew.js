@@ -281,6 +281,27 @@ export function grindLabel(brew) {
   return unit ? `${brew.grind_size} ${unit}` : String(brew.grind_size);
 }
 
+// "+3 clicks" for the grinder's micro-adjustment dial, or null when the brew
+// doesn't record one. The sign is part of the meaning — a micro-adjustment
+// of -2 clicks is finer than the base setting, +2 is coarser.
+export function microAdjustLabel(brew) {
+  if (brew?.micro_adjustment == null) return null;
+  const unit = brew.micro_adjustment_unit?.trim();
+  const value = String(brew.micro_adjustment);
+  const signed = value.startsWith("-") ? value : `+${value}`;
+  return unit ? `${signed} ${unit}` : signed;
+}
+
+// Form-state view of the micro-adjustment fields. A blank form field maps to
+// "", so "not recorded" stays distinct from a recorded zero.
+export function microAdjustmentState(brew) {
+  return {
+    microAdjustment:
+      brew?.micro_adjustment == null ? "" : String(brew.micro_adjustment),
+    microAdjustmentUnit: brew?.micro_adjustment_unit ?? "",
+  };
+}
+
 export function ratioOf(brew) {
   if (!brew.dose_g || !brew.water_g) return null;
   return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;
@@ -297,6 +318,7 @@ export function suggestionsFrom(rows = []) {
     machineModel: "machine_model",
     grinder: "grinder",
     grindUnit: "grind_unit",
+    microAdjustmentUnit: "micro_adjustment_unit",
     beanName: "bean_name",
     origin: "origin",
     milkBrand: "milk_brand",

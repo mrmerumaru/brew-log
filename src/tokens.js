@@ -68,6 +68,18 @@ export const DRINKS = [
 // forward automatically.
 export const GRIND_UNITS = ["clicks", "numbers", "rotations", "microns", "marks", "steps"];
 
+// The micro-adjustment dial on the side of a grinder has its own scale, so it
+// gets its own unit list. Clicks is the default — it's what an espresso
+// grinder's fine-tune dial counts — but the list is free text either way.
+export const MICRO_ADJUSTMENT_UNITS = [
+  "clicks",
+  "numbers",
+  "microns",
+  "marks",
+  "steps",
+  "rotations",
+];
+
 // Starter suggestions for milk kind; like DRINKS, not a closed list.
 export const MILK_TYPES = [
   "Fresh Milk",
