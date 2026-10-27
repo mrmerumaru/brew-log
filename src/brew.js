@@ -302,6 +302,21 @@ export function microAdjustmentState(brew) {
   };
 }
 
+// The unit to store for a micro-adjustment. "clicks" is the default: it's
+// what an espresso grinder's fine-tune dial counts, so a user who types a
+// value and leaves the unit alone shouldn't end up with a unitless number.
+// A blank unit WITH a blank value stays null — there's no micro-adjustment
+// to give a unit to.
+export const DEFAULT_MICRO_ADJUSTMENT_UNIT = "clicks";
+
+export function microAdjustmentUnitToSave(value, adjustment) {
+  // No value means no micro-adjustment, so there's no unit to record either.
+  if (num(adjustment) == null) return null;
+  const unit = value?.trim();
+  if (unit) return unit;
+  return DEFAULT_MICRO_ADJUSTMENT_UNIT;
+}
+
 export function ratioOf(brew) {
   if (!brew.dose_g || !brew.water_g) return null;
   return `1 : ${(brew.water_g / brew.dose_g).toFixed(1)}`;

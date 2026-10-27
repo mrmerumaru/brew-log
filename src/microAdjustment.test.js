@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { microAdjustLabel, microAdjustmentState, suggestionsFrom, num } from "./brew";
+import {
+  microAdjustLabel,
+  microAdjustmentState,
+  microAdjustmentUnitToSave,
+  suggestionsFrom,
+  num,
+} from "./brew";
 
 describe("microAdjustLabel", () => {
   it("is null when no micro-adjustment was recorded", () => {
@@ -68,6 +74,33 @@ describe("micro-adjustment is optional", () => {
         micro_adjustment_unit: "microns",
       }),
     ).toEqual({ microAdjustment: "3", microAdjustmentUnit: "microns" });
+  });
+});
+
+describe("the micro-adjustment unit defaults to clicks", () => {
+  it("a value with no unit gets clicks", () => {
+    expect(microAdjustmentUnitToSave("", "3")).toBe("clicks");
+    expect(microAdjustmentUnitToSave("   ", "3")).toBe("clicks");
+    expect(microAdjustmentUnitToSave(null, "3")).toBe("clicks");
+  });
+
+  it("a value with a custom unit keeps it", () => {
+    expect(microAdjustmentUnitToSave("microns", "3")).toBe("microns");
+    expect(microAdjustmentUnitToSave("rotations", "-1.5")).toBe("rotations");
+  });
+
+  it("a unit is trimmed", () => {
+    expect(microAdjustmentUnitToSave("  clicks  ", "3")).toBe("clicks");
+  });
+
+  it("no value means no unit — there's nothing to give a unit to", () => {
+    expect(microAdjustmentUnitToSave("", "")).toBe(null);
+    expect(microAdjustmentUnitToSave("clicks", "")).toBe(null);
+    expect(microAdjustmentUnitToSave(null, null)).toBe(null);
+  });
+
+  it("a recorded zero is still a value, so it gets the default unit", () => {
+    expect(microAdjustmentUnitToSave("", "0")).toBe("clicks");
   });
 });
 

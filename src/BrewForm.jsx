@@ -48,6 +48,7 @@ import {
   MAX_BLEND_COMPONENTS,
   pickCarryForward,
   microAdjustmentState,
+  microAdjustmentUnitToSave,
   fileExtension,
   num,
   dateOrNull,
@@ -802,7 +803,11 @@ export default function BrewForm({
         // Optional: null when the user leaves it blank, so "no micro-adjustment
         // on this grinder" stays distinguishable from "adjusted by zero".
         micro_adjustment: num(microAdjustment),
-        micro_adjustment_unit: microAdjustmentUnit || null,
+        // "clicks" is the default unit, applied only when there is a value.
+        micro_adjustment_unit: microAdjustmentUnitToSave(
+          microAdjustmentUnit,
+          microAdjustment,
+        ),
         // null rather than "" so "not recorded" stays distinguishable.
         bean_type: beanType || null,
         // The roastery applies to the whole bag, blend or not, so bean_name is
