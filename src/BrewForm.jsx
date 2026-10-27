@@ -30,6 +30,10 @@ import {
 import {
   splitSeconds,
   joinSeconds,
+  splitHours,
+  joinHours,
+  usesHourTime,
+  sameMethod,
   componentsFromBrew,
   poursFromBrew,
   poursToPayload,
@@ -81,6 +85,7 @@ const DEFAULTS = {
   temp: "94",
   timeMin: "2",
   timeSec: "45",
+  timeHours: "",
   pours: [{ ...BLANK_POUR }],
   flavors: ["Fruity"],
   rating: 4,
@@ -101,8 +106,10 @@ function splitMethod(method) {
 }
 
 // Maps a saved row back onto the form's state shape. Numbers become strings
-// because the inputs are text fields, and brew_time_s splits into two boxes.
+// because the inputs are text fields, and brew_time_s splits into two boxes
+// — or into a single hours box for methods that brew in hours.
 function formStateFromBrew(brew) {
+  const hourTime = usesHourTime(brew.method);
   return {
     drink: brew.drink ?? "",
     ...splitMethod(brew.method),
@@ -123,7 +130,9 @@ function formStateFromBrew(brew) {
     dose: brew.dose_g == null ? "" : String(brew.dose_g),
     water: brew.water_g == null ? "" : String(brew.water_g),
     temp: brew.water_temp_c == null ? "" : String(brew.water_temp_c),
-    ...splitSeconds(brew.brew_time_s),
+    ...(hourTime
+      ? { ...splitHours(brew.brew_time_s), timeMin: "", timeSec: "" }
+      : { ...splitSeconds(brew.brew_time_s), timeHours: "" }),
     pours: poursFromBrew(brew),
     flavors: brew.flavor_tags ?? [],
     rating: brew.rating ?? 0,
@@ -435,6 +444,7 @@ export default function BrewForm({
   const [temp, setTemp] = useState(init.temp);
   const [timeMin, setTimeMin] = useState(init.timeMin);
   const [timeSec, setTimeSec] = useState(init.timeSec);
+  const [timeHours, setTimeHours] = useState(init.timeHours);
   const [pours, setPours] = useState(init.pours);
   const [flavors, setFlavors] = useState(init.flavors);
   // Tags you've added yourself, kept in localStorage so they appear next brew too.
@@ -503,19 +513,34 @@ export default function BrewForm({
   useEffect(() => {
     if (isEditing || repeating) return;
     if (prevMethodRef.current === methodForCarry) return;
+    const nowHour = usesHourTime(methodForCarry);
     prevMethodRef.current = methodForCarry;
     const source = pickCarryForward(pastBrewsRef.current, methodForCarry);
     // If the helper fell back to a brew whose method doesn't match the
     // one the user just picked (they're switching to a method they've
     // never brewed), clear the equipment + bean fields so they don't
     // carry over a different method's gear and beans.
-    const carried = (source && source.method === methodForCarry)
-      ? carriedFromBrew(source)
-      : carriedFromBrew(null);
+    const matched = Boolean(source) && sameMethod(source.method, methodForCarry);
+    const carried = matched ? carriedFromBrew(source) : carriedFromBrew(null);
     for (const k of CARRY_KEYS) {
       settersRef.current[`set${k[0].toUpperCase()}${k.slice(1)}`](carried[k]);
     }
-    setCarried(Boolean(source) && source.method === methodForCarry);
+    // Brew time belongs to the method, not the cup: a cold brew is 12h, a
+    // pourover is 2:45. So the time follows the carry-forward source too,
+    // and its unit changes with the method. Without a source there's
+    // nothing sensible to carry — a 2:45 pourover is not a cold brew.
+    const sourceSeconds = matched ? (source.brew_time_s ?? null) : null;
+    if (nowHour) {
+      setTimeHours(sourceSeconds == null ? "" : splitHours(sourceSeconds).timeHours);
+      setTimeMin("");
+      setTimeSec("");
+    } else {
+      const split = splitSeconds(sourceSeconds);
+      setTimeMin(split.timeMin);
+      setTimeSec(split.timeSec);
+      setTimeHours("");
+    }
+    setCarried(matched);
     // We intentionally don't depend on pastBrews. After a save the new
     // row gets prepended to the list, but a re-derivation against the
     // freshly-saved brew would wipe whatever the user is currently
@@ -571,6 +596,9 @@ export default function BrewForm({
   // "Cannot access 'method' before initialization" on every render, which with
   // no error boundary unmounts the whole app and leaves a blank page.
   const isPourover = method === "Pourover";
+  // Cold brews steep for 12-18 hours, which is unusable in a
+  // minutes/seconds pair — those methods get a single hours field instead.
+  const isHourTime = usesHourTime(method);
   const pourRunningTotals = pourTotals(pours);
   const poursWater = pourTotal(pours);
 
@@ -690,6 +718,7 @@ export default function BrewForm({
     setTemp(s.temp);
     setTimeMin(s.timeMin);
     setTimeSec(s.timeSec);
+    setTimeHours(s.timeHours);
     setPours(s.pours);
     setFlavors(s.flavors);
     setRating(s.rating);
@@ -763,7 +792,9 @@ export default function BrewForm({
         dose_g: num(dose),
         water_g: num(water),
         water_temp_c: num(temp),
-        brew_time_s: joinSeconds(timeMin, timeSec),
+        // Cold brews are logged in hours; everything else in minutes and
+        // seconds. Both land in the same seconds column.
+        brew_time_s: isHourTime ? joinHours(timeHours) : joinSeconds(timeMin, timeSec),
         // Only pourover has a schedule; every other method stores null.
         pours: isPourover ? poursToPayload(pours) : null,
         flavor_tags: flavors,
@@ -1269,29 +1300,43 @@ export default function BrewForm({
               inputMode="decimal"
             />
             {/* Two integer boxes instead of one "m:ss" field — no colon to reach
-                for, and seconds over 59 roll up on save. */}
-            <div className="grid grid-cols-2 gap-x-3">
+                for, and seconds over 59 roll up on save. Cold brews steep for
+                hours, so they get a single hours box instead; 12:00:00 is not
+                something anyone can type. */}
+            {isHourTime ? (
               <Field
                 label="Time"
-                value={timeMin}
-                onChange={setTimeMin}
+                value={timeHours}
+                onChange={setTimeHours}
                 mono
-                suffix="min"
-                inputMode="numeric"
-                placeholder="2"
+                suffix="hours"
+                inputMode="decimal"
+                placeholder="12"
               />
-              <Field
-                // Shares the "Time" label with the box beside it.
-                label=""
-                ariaLabel="Brew time seconds"
-                value={timeSec}
-                onChange={setTimeSec}
-                mono
-                suffix="sec"
-                inputMode="numeric"
-                placeholder="45"
-              />
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-3">
+                <Field
+                  label="Time"
+                  value={timeMin}
+                  onChange={setTimeMin}
+                  mono
+                  suffix="min"
+                  inputMode="numeric"
+                  placeholder="2"
+                />
+                <Field
+                  // Shares the "Time" label with the box beside it.
+                  label=""
+                  ariaLabel="Brew time seconds"
+                  value={timeSec}
+                  onChange={setTimeSec}
+                  mono
+                  suffix="sec"
+                  inputMode="numeric"
+                  placeholder="45"
+                />
+              </div>
+            )}
 
             {/* Grind size and its unit stay side by side: the number is
                 meaningless without knowing whether it counts clicks, dial

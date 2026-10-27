@@ -1,5 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { pickCarryForward } from "./brew";
+import { pickCarryForward, sameMethod } from "./brew";
+
+describe("sameMethod", () => {
+  it("matches identical strings", () => {
+    expect(sameMethod("Cold Brew", "Cold Brew")).toBe(true);
+    expect(sameMethod("Pourover", "Pourover")).toBe(true);
+  });
+
+  it("ignores casing and surrounding space", () => {
+    expect(sameMethod("cold brew", "Cold Brew")).toBe(true);
+    expect(sameMethod("COLD BREW", "cold brew")).toBe(true);
+    expect(sameMethod("  Cold Brew  ", "Cold Brew")).toBe(true);
+  });
+
+  it("is false for different methods", () => {
+    expect(sameMethod("Cold Brew", "Pourover")).toBe(false);
+    expect(sameMethod("Cold Brew", "Cold Brew Concentrate")).toBe(false);
+  });
+
+  it("is false when either side is missing", () => {
+    expect(sameMethod("", "Cold Brew")).toBe(false);
+    expect(sameMethod("Cold Brew", "")).toBe(false);
+    expect(sameMethod(null, "Cold Brew")).toBe(false);
+    expect(sameMethod(undefined, undefined)).toBe(false);
+  });
+});
 
 describe("pickCarryForward", () => {
   it("returns null when there are no brews", () => {
@@ -55,6 +80,16 @@ describe("pickCarryForward", () => {
       { id: "match", method: "Pourover", created_at: "2026-01-01" },
     ];
     expect(pickCarryForward(brews, "Pourover")).toEqual(brews[1]);
+  });
+
+  it("matches a method case-insensitively", () => {
+    // A hand-typed "cold brew" should find the built-in "Cold Brew" row.
+    const brews = [
+      { id: "espresso", method: "Espresso", created_at: "2026-01-05" },
+      { id: "cold", method: "Cold Brew", created_at: "2026-01-04" },
+    ];
+    expect(pickCarryForward(brews, "cold brew")).toEqual(brews[1]);
+    expect(pickCarryForward(brews, "COLD BREW")).toEqual(brews[1]);
   });
 
   it("returns the most recent brew when no brews have a usable method", () => {

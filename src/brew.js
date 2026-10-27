@@ -34,11 +34,55 @@ export function joinSeconds(minutes, seconds) {
 }
 
 // Seconds -> "m:ss", for display in history and on the share card.
+// Brews over an hour read as hours instead: "720:00" is technically right
+// but nobody thinks in 720 minutes, and a cold brew's whole point is the
+// long steep.
 export function formatBrewTime(seconds) {
   if (seconds == null) return null;
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// Methods whose brew time is entered in hours rather than minutes and
+// seconds. A cold brew steep for 12-18 hours — "12:00:00" in a
+// minutes/seconds field is unusable.
+export const HOUR_METHODS = ["Cold Brew"];
+
+/**
+ * Does this method use an hours field instead of the minutes/seconds pair?
+ * Matches case-insensitively so a hand-typed "cold brew" counts too.
+ */
+export function usesHourTime(method) {
+  if (!method) return false;
+  const m = String(method).trim().toLowerCase();
+  return HOUR_METHODS.some((h) => h.toLowerCase() === m);
+}
+
+/** Seconds -> the hours field value (whole hours, rounded to 1dp). */
+export function splitHours(total) {
+  if (total == null) return { timeHours: "" };
+  const hours = Math.round((total / 3600) * 10) / 10;
+  return { timeHours: String(hours) };
+}
+
+/**
+ * The hours field -> seconds. Null only when blank, so the column stays
+ * null rather than 0 for an unrecorded time.
+ *
+ * Tenths of an hour are allowed (6.5h = 6h30m), because a half-hour
+ * difference is exactly the kind of thing a cold-brew recipe cares about.
+ */
+export function joinHours(hours) {
+  const h = parseFloat(String(hours ?? "").trim());
+  if (!Number.isFinite(h)) return null;
+  if (h < 0) return null;
+  return Math.round(h * 3600);
 }
 
 // The implementation guides hardcode ".jpg"; derive the real extension so a
@@ -296,12 +340,24 @@ export function suggestionsFrom(rows = []) {
 // know yet" — falls back to the most recent of any method). The list is
 // assumed to be ordered newest-first, which is what App.jsx already passes
 // in.
+/**
+ * Are these two method names the same method? Case- and space-insensitive,
+ * because the method is often typed by hand and the casing shouldn't decide
+ * whether a saved brew is treated as a match.
+ */
+export function sameMethod(a, b) {
+  if (!a || !b) return false;
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
 export function pickCarryForward(brews, method) {
   if (!Array.isArray(brews) || brews.length === 0) return null;
   if (!method) return brews[0];
-  const match = brews.find(
-    (b) => b && typeof b.method === "string" && b.method === method,
-  );
+  // Case-insensitive, so a hand-typed "cold brew" finds the built-in
+  // "Cold Brew" row (and vice versa). Methods are user-typed text as
+  // often as they're picked from the chip list, and the casing shouldn't
+  // decide whether the previous setup is carried forward.
+  const match = brews.find((b) => b && sameMethod(b.method, method));
   return match ?? brews[0];
 }
 
