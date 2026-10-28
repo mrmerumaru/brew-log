@@ -47,6 +47,8 @@ import {
   BLANK_COMPONENT,
   MAX_BLEND_COMPONENTS,
   pickCarryForward,
+  applyCarriedFields,
+  CARRY_KEYS,
   microAdjustmentState,
   microAdjustmentUnitToSave,
   fileExtension,
@@ -161,21 +163,6 @@ function carriedForwardFrom(brew) {
 // Pull just the equipment + bean fields out of a form state. Used by the
 // "switch method" effect, which has to swap these without touching the
 // drink name, brew parameters, milk, or per-cup values.
-const CARRY_KEYS = [
-  "machineBrand",
-  "machineModel",
-  "grinder",
-  "grindSize",
-  "grindUnit",
-  "microAdjustment",
-  "microAdjustmentUnit",
-  "beanName",
-  "beanType",
-  "components",
-  "origin",
-  "process",
-  "roast",
-];
 function carriedFromBrew(brew) {
   if (!brew) {
     return {
@@ -505,19 +492,26 @@ export default function BrewForm({
     : methodChoice);
   // Map of "carry key" -> "setter that updates that key". Kept as a ref so
   // the effect doesn't have to re-bind when any setter changes identity.
+  //
+  // Keyed by the carry key itself, not by a computed "set<Name>" name. A
+  // computed lookup silently resolves to undefined for any key without a
+  // setter, and calling it throws "is not a function" — which blanks the
+  // whole form the moment the user switches method.
   const settersRef = useRef({});
   settersRef.current = {
-    setMachineBrand,
-    setMachineModel,
-    setGrinder,
-    setGrindSize,
-    setGrindUnit,
-    setBeanName,
-    setBeanType,
-    setComponents,
-    setOrigin,
-    setProcess,
-    setRoast,
+    machineBrand: setMachineBrand,
+    machineModel: setMachineModel,
+    grinder: setGrinder,
+    grindSize: setGrindSize,
+    grindUnit: setGrindUnit,
+    microAdjustment: setMicroAdjustment,
+    microAdjustmentUnit: setMicroAdjustmentUnit,
+    beanName: setBeanName,
+    beanType: setBeanType,
+    components: setComponents,
+    origin: setOrigin,
+    process: setProcess,
+    roast: setRoast,
   };
   const pastBrewsRef = useRef(pastBrews);
   pastBrewsRef.current = pastBrews;
@@ -536,8 +530,11 @@ export default function BrewForm({
     // carry over a different method's gear and beans.
     const matched = Boolean(source) && sameMethod(source.method, methodForCarry);
     const carried = matched ? carriedFromBrew(source) : carriedFromBrew(null);
-    for (const k of CARRY_KEYS) {
-      settersRef.current[`set${k[0].toUpperCase()}${k.slice(1)}`](carried[k]);
+    const missing = applyCarriedFields(carried, settersRef.current);
+    if (missing.length) {
+      // A carry key without a setter would silently leave the old value on
+      // screen. Name the keys so it's obvious what needs wiring up.
+      console.error("Carry-forward has no setter for:", missing.join(", "));
     }
     // Brew time belongs to the method, not the cup: a cold brew is 12h, a
     // pourover is 2:45. So the time follows the carry-forward source too,

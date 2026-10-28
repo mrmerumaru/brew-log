@@ -398,6 +398,45 @@ export function pickCarryForward(brews, method) {
   return match ?? brews[0];
 }
 
+// The form's equipment + bean fields, carried forward when the user switches
+// method. The list lives here rather than in the component so the
+// carry-forward logic can be tested without rendering the form.
+//
+// Every key needs a matching setter in the form's setter map. The map is
+// keyed by carry key (not by a computed "set<Name>" convention) precisely so
+// that a new key can't be added here without a setter to apply it.
+export const CARRY_KEYS = [
+  "machineBrand",
+  "machineModel",
+  "grinder",
+  "grindSize",
+  "grindUnit",
+  "microAdjustment",
+  "microAdjustmentUnit",
+  "beanName",
+  "beanType",
+  "components",
+  "origin",
+  "process",
+  "roast",
+];
+
+// Apply the carried values through the form's setter map, keyed by carry
+// key. Returns the keys that had no setter, so a mismatch surfaces as a
+// named list instead of a "is not a function" crash that blanks the form.
+export function applyCarriedFields(carried, setters) {
+  const missing = [];
+  for (const k of CARRY_KEYS) {
+    const setter = setters?.[k];
+    if (typeof setter !== "function") {
+      missing.push(k);
+      continue;
+    }
+    setter(carried[k]);
+  }
+  return missing;
+}
+
 // Object URLs need revoking; remote signed URLs must be left alone. When
 // editing, the preview starts as a signed URL from Storage and only becomes a
 // blob: URL if the user picks a replacement file.
