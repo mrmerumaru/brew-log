@@ -1296,24 +1296,6 @@ export default function BrewForm({
               placeholder="Comandante C40"
               suggestions={suggestions.grinder}
             />
-            {/* The fine-tune dial on the side of the grinder. Optional, and on
-                its own scale — the base setting and the micro-adjustment can
-                count in different units on the same grinder. */}
-            <Field
-              label="Micro-adjust"
-              value={microAdjustment}
-              onChange={setMicroAdjustment}
-              placeholder="+3"
-              mono
-              inputMode="decimal"
-            />
-            <Field
-              label="Micro unit"
-              value={microAdjustmentUnit}
-              onChange={setMicroAdjustmentUnit}
-              placeholder="clicks"
-              suggestions={microAdjustmentUnitSuggestions}
-            />
           </div>
           </>
         )}
@@ -1403,6 +1385,25 @@ export default function BrewForm({
               onChange={setGrindUnit}
               placeholder="clicks"
               suggestions={grindUnitSuggestions}
+            />
+            {/* The fine-tune dial on the side of the grinder. Optional, and on
+                its own scale — the base setting and the micro-adjustment can
+                count in different units on the same grinder. Lives next to
+                the grind size it offsets, not next to the grinder itself. */}
+            <Field
+              label="Micro-adjust"
+              value={microAdjustment}
+              onChange={setMicroAdjustment}
+              placeholder="+3"
+              mono
+              inputMode="decimal"
+            />
+            <Field
+              label="Micro unit"
+              value={microAdjustmentUnit}
+              onChange={setMicroAdjustmentUnit}
+              placeholder="clicks"
+              suggestions={microAdjustmentUnitSuggestions}
             />
           </div>
 
