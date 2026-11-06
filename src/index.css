@@ -23,7 +23,7 @@ body {
 
 /* The page background should reach the edges even though #root is inset. */
 body {
-  background: #f3f1ec;
+  background: #f0ebdd;
 }
 
 /* --- Paper -------------------------------------------------------------
@@ -44,21 +44,21 @@ body {
    printed form divides itself. Hairlines top and bottom, a slightly deeper
    tint than the card, and the label set in mono small caps. */
 .bl-band {
-  background: color-mix(in srgb, var(--paper, #f3f1ec) 70%, var(--card, #fbfaf7));
-  border-top: 1px solid var(--rule, #d8d2c4);
-  border-bottom: 1px solid var(--rule, #d8d2c4);
+  background: color-mix(in srgb, var(--paper, #f0ebdd) 70%, var(--card, #fbf9f3));
+  border-top: 1px solid var(--rule, #d3c6a7);
+  border-bottom: 1px solid var(--rule, #d3c6a7);
 }
 
-/* The lettered mark. Amber when the section has something in it, which is the
+/* The lettered mark. Caramel when the section has something in it, which is the
    app's one consistent signal for "a value is recorded here". */
 .bl-mark {
-  border: 1px solid var(--rule, #d8d2c4);
-  color: var(--ink-faint, #6b6558);
+  border: 1px solid var(--rule, #d3c6a7);
+  color: var(--ink-faint, #4a3527);
 }
 
 .bl-mark-set {
-  border-color: var(--amber, #c77d2e);
-  color: var(--amber, #c77d2e);
+  border-color: var(--caramel, #c87832);
+  color: var(--caramel, #c87832);
 }
 
 /* --- Interaction states -------------------------------------------------
@@ -87,7 +87,7 @@ body {
    field should show it when clicked too, not just when tabbed to. */
 .bl-press:focus-visible,
 .bl-focus:focus-visible {
-  outline: 2px solid var(--green, #2f5233);
+  outline: 2px solid var(--espresso, #2b1f1a);
   outline-offset: 3px;
   border-radius: 2px;
 }
@@ -101,22 +101,22 @@ body {
 }
 
 .bl-input:hover {
-  border-color: var(--ink-faint, #6b6558);
+  border-color: var(--ink-faint, #4a3527);
 }
 
 .bl-input:focus {
-  border-color: var(--green, #2f5233);
-  box-shadow: 0 1px 0 0 var(--green, #2f5233);
+  border-color: var(--espresso, #2b1f1a);
+  box-shadow: 0 1px 0 0 var(--espresso, #2b1f1a);
 }
 
 .bl-chip:hover {
-  border-color: var(--ink-faint, #6b6558);
-  color: var(--ink, #201d1a);
+  border-color: var(--ink-faint, #4a3527);
+  color: var(--ink, #1c1c1c);
 }
 
-/* Solid green buttons: Save, Next, Send. */
+/* Solid espresso buttons: Save, Next, Send. */
 .bl-solid:hover:not(:disabled) {
-  background: var(--green-deep, #26421f);
+  background: var(--espresso-deep, #241913);
 }
 
 .bl-solid:disabled {
@@ -125,7 +125,7 @@ body {
 
 /* Faint icon buttons and text links come forward on hover. */
 .bl-quiet:hover:not(:disabled) {
-  color: var(--ink, #201d1a);
+  color: var(--ink, #1c1c1c);
 }
 
 .bl-danger:hover:not(:disabled) {

@@ -67,9 +67,9 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
             className="bl-press bl-chip px-2.5 py-1 rounded-full text-[12px]"
             style={{
               fontFamily: SERIF,
-              border: `1px solid ${method === m ? TOKENS.green : TOKENS.rule}`,
-              background: method === m ? TOKENS.greenSoft : "transparent",
-              color: method === m ? TOKENS.green : TOKENS.inkFaint,
+              border: `1px solid ${method === m ? TOKENS.espresso : TOKENS.rule}`,
+              background: method === m ? TOKENS.espressoSoft : "transparent",
+              color: method === m ? TOKENS.espresso : TOKENS.inkFaint,
             }}
           >
             {m}
@@ -92,7 +92,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
               onClick={() => setMinRating(minRating === i ? 0 : i)}
               aria-label={`At least ${i} cups`}
               className="bl-press p-0.5"
-              style={{ color: i <= minRating ? TOKENS.amber : TOKENS.rule }}
+              style={{ color: i <= minRating ? TOKENS.caramel : TOKENS.rule }}
             >
               <Coffee size={14} strokeWidth={i <= minRating ? 2.4 : 1.8} />
             </button>
@@ -123,7 +123,7 @@ function Meta({ label, value }) {
       >
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.amber }}>{value}</div>
+      <div style={{ fontFamily: MONO, fontSize: 14, color: TOKENS.caramel }}>{value}</div>
     </div>
   );
 }
@@ -170,7 +170,7 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
                 key={i}
                 size={11}
                 strokeWidth={i <= (brew.rating ?? 0) ? 2.4 : 1.8}
-                style={{ color: i <= (brew.rating ?? 0) ? TOKENS.amber : TOKENS.rule }}
+                style={{ color: i <= (brew.rating ?? 0) ? TOKENS.caramel : TOKENS.rule }}
               />
             ))}
           </span>
@@ -196,8 +196,8 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
                   className="px-1.5 py-0.5 rounded-full text-[10px] truncate max-w-[100px]"
                   style={{
                     fontFamily: SERIF,
-                    background: TOKENS.greenSoft,
-                    color: TOKENS.green,
+                    background: TOKENS.espressoSoft,
+                    color: TOKENS.espresso,
                   }}
                 >
                   {tag}
@@ -340,8 +340,8 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                   className="px-2 py-0.5 rounded-full text-[12px]"
                   style={{
                     fontFamily: SERIF,
-                    background: TOKENS.greenSoft,
-                    color: TOKENS.green,
+                    background: TOKENS.espressoSoft,
+                    color: TOKENS.espresso,
                   }}
                 >
                   {tag}
@@ -787,7 +787,7 @@ export default function BrewHistory({
             className="bl-press bl-quiet flex items-center gap-1.5 text-[10px] uppercase"
             style={{
               fontFamily: MONO,
-              color: expandAll ? TOKENS.green : TOKENS.inkFaint,
+              color: expandAll ? TOKENS.espresso : TOKENS.inkFaint,
               letterSpacing: "0.1em",
             }}
             aria-pressed={expandAll}

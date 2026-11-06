@@ -209,8 +209,8 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   onClick={() => setRatio(key)}
                   className="bl-press bl-chip flex-1 py-2 rounded-sm text-left px-3"
                   style={{
-                    border: `1px solid ${active ? TOKENS.green : TOKENS.rule}`,
-                    background: active ? TOKENS.greenSoft : "transparent",
+                    border: `1px solid ${active ? TOKENS.espresso : TOKENS.rule}`,
+                    background: active ? TOKENS.espressoSoft : "transparent",
                   }}
                 >
                   <div
@@ -218,7 +218,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                     style={{
                       fontFamily: SANS,
                       fontWeight: 700,
-                      color: active ? TOKENS.green : TOKENS.ink,
+                      color: active ? TOKENS.espresso : TOKENS.ink,
                     }}
                   >
                     {CARD_RATIOS[key].label}
@@ -227,7 +227,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                     style={{
                       fontFamily: MONO,
                       fontSize: 10,
-                      color: active ? TOKENS.green : TOKENS.inkFaint,
+                      color: active ? TOKENS.espresso : TOKENS.inkFaint,
                     }}
                   >
                     {key}
@@ -292,7 +292,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                     setTransform((t) => ({ ...t, scale: parseFloat(e.target.value) }))
                   }
                   className="flex-1"
-                  style={{ accentColor: TOKENS.green }}
+                  style={{ accentColor: TOKENS.espresso }}
                   aria-label="Zoom photo"
                 />
                 <button
@@ -353,7 +353,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             style={{
               fontFamily: SANS,
               fontWeight: 700,
-              background: TOKENS.green,
+              background: TOKENS.espresso,
               color: TOKENS.card,
               opacity: busy ? 0.6 : 1,
               cursor: busy ? "default" : "pointer",

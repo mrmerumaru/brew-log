@@ -1,6 +1,11 @@
 // Shared design tokens, lifted out of the original mockup so the form, the
 // history list, and the login screen all read from one palette.
 // Fonts are loaded via <link> in index.html.
+//
+// Palette is the espresso/cream/caramel scheme from the landing page, so the
+// app and the marketing site read as one product. `green` was renamed to
+// `espresso` (and `greenSoft` -> `espressoSoft`, `amber` -> `caramel`) in the
+// same pass that changed the values — no key still carries the old meaning.
 
 // Type scale. Four steps, deliberately — the UI previously used seven sizes
 // between 9px and 15px, which reads as noise rather than hierarchy:
@@ -12,17 +17,17 @@
 // class name; this comment is the scale's definition.
 
 export const TOKENS = {
-  paper: "#F3F1EC",
-  card: "#FBFAF7",
-  ink: "#201D1A",
-  inkFaint: "#6B6558",
-  rule: "#D8D2C4",
-  green: "#2F5233",
-  greenSoft: "#E4EADF",
-  amber: "#C77D2E",
+  paper: "#F0EBDD",
+  card: "#FBF9F3",
+  ink: "#1C1C1C",
+  inkFaint: "#4A3527",
+  rule: "#D3C6A7",
+  espresso: "#2B1F1A",
+  espressoSoft: "#E7DFCC",
+  caramel: "#C87832",
   red: "#9B3B26",
-  // Hover shade for the solid green buttons.
-  greenDeep: "#26421F",
+  // Hover shade for the solid espresso buttons.
+  espressoDeep: "#241913",
 };
 
 /**
@@ -39,9 +44,9 @@ export function applyTokens(root = document.documentElement) {
   }
 }
 
-export const SANS = "'Space Grotesk', sans-serif";
+export const SANS = "'Poppins', sans-serif";
 export const MONO = "'IBM Plex Mono', monospace";
-export const SERIF = "'Source Serif 4', serif";
+export const SERIF = "'Playfair Display', serif";
 
 // Starting suggestions for the drink field. Not a closed list — it's a free
 // text input, and anything you type joins the suggestions next time.

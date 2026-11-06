@@ -131,7 +131,7 @@ function drawRating(ctx, x, y, rating) {
       y,
       CUP_SIZE,
       filled,
-      filled ? TOKENS.amber : TOKENS.rule,
+      filled ? TOKENS.caramel : TOKENS.rule,
       // Rating cups sit over the photo where the scrim is still thin, so they
       // always carry the halo. The footer mark doesn't — it's already light on
       // a near-solid base.
@@ -446,7 +446,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   }
 
   // ---- Flavour tags ------------------------------------------------------
-  // Translucent white pills rather than the app's pale-green ones: over a photo
+  // Translucent white pills rather than the app's the app's tinted ones: over a photo
   // a frosted fill stays legible against whatever is behind it, where a light
   // solid would flatten into a row of blank shapes.
   if (chips.height) {

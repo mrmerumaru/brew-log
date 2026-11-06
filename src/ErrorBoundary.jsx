@@ -78,7 +78,7 @@ export default class ErrorBoundary extends React.Component {
             style={{
               fontFamily: SANS,
               fontWeight: 700,
-              background: TOKENS.green,
+              background: TOKENS.espresso,
               color: TOKENS.card,
             }}
           >

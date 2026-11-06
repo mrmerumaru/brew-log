@@ -41,7 +41,7 @@ function Figure({ label, value, note }) {
       >
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 600, color: TOKENS.amber }}>
+      <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 600, color: TOKENS.caramel }}>
         {value}
       </div>
       {note && (
@@ -76,7 +76,7 @@ function Ranking({ mark, title, groups, empty }) {
                   {g.count}
                 </span>
                 <span
-                  style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.amber }}
+                  style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.caramel }}
                 >
                   {g.average.toFixed(1)}
                 </span>
@@ -118,7 +118,7 @@ export default function Insights({ brews }) {
 
   return (
     <div className="bl-paper w-full max-w-[480px] rounded-sm" style={card}>
-      <div className="px-6 pt-6 pb-5" style={{ borderBottom: `2px solid ${TOKENS.amber}` }}>
+      <div className="px-6 pt-6 pb-5" style={{ borderBottom: `2px solid ${TOKENS.caramel}` }}>
         <div className="flex flex-wrap gap-x-8 gap-y-4">
           <Figure label="BREWS" value={stats.total} />
           <Figure
@@ -144,7 +144,7 @@ export default function Insights({ brews }) {
             <div className="flex items-baseline justify-end gap-6 pb-2">
               <span
                 className="w-16 text-right"
-                style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.amber, letterSpacing: "0.08em" }}
+                style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.caramel, letterSpacing: "0.08em" }}
               >
                 {GOOD_RATING}★+
               </span>
@@ -168,7 +168,7 @@ export default function Insights({ brews }) {
                 <span className="shrink-0 flex items-baseline gap-6">
                   <span
                     className="w-16 text-right"
-                    style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.amber }}
+                    style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.caramel }}
                   >
                     {formatParameter(p, p.good)}
                   </span>
@@ -201,7 +201,7 @@ export default function Insights({ brews }) {
                 <span
                   key={f.tag}
                   className="px-2.5 py-1 rounded-full text-[12px]"
-                  style={{ fontFamily: SERIF, background: TOKENS.greenSoft, color: TOKENS.green }}
+                  style={{ fontFamily: SERIF, background: TOKENS.espressoSoft, color: TOKENS.espresso }}
                 >
                   {f.tag}
                   <span style={{ fontFamily: MONO, fontSize: 10 }}> {Math.round(f.share * 100)}%</span>
@@ -253,7 +253,7 @@ export default function Insights({ brews }) {
                   </span>
                   <span
                     className="shrink-0"
-                    style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.amber }}
+                    style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: TOKENS.caramel }}
                   >
                     {b.rating}★
                   </span>

@@ -8,7 +8,7 @@ import { APP_ICON } from "./env";
 // and can't be blocked.
 function GoogleMark() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -57,61 +57,63 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="bl-paper w-full max-w-[380px] rounded-sm px-6 py-8"
-      style={{
-        background: TOKENS.card,
-        border: `1px solid ${TOKENS.rule}`,
-        boxShadow: "0 1px 2px rgba(32,29,26,0.04)",
-      }}
-    >
-      <div className="flex items-center gap-2 mb-6">
-        <img
-          src={APP_ICON}
-          alt=""
-          width={22}
-          height={22}
-          className="rounded-[5px] shrink-0"
-        />
-        <span
-          className="text-[16px]"
-          style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink, letterSpacing: "0.01em" }}
-        >
-          Brew Log
-        </span>
-      </div>
+    <div className="w-full max-w-[360px] flex flex-col items-center text-center">
+      <img
+        src={APP_ICON}
+        alt=""
+        width={52}
+        height={52}
+        className="rounded-[14px] shrink-0"
+        style={{ boxShadow: "0 10px 28px -14px rgba(28,28,28,0.45)" }}
+      />
 
-      <p
-        className="mb-6"
-        style={{ fontFamily: SERIF, fontSize: 14, color: TOKENS.inkFaint, lineHeight: 1.6 }}
+      <div
+        className="mt-4"
+        style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, color: TOKENS.ink, letterSpacing: "0.01em" }}
       >
-        Sign in to log your brews and look back at what worked. Your brews are
-        private to you.
+        Brew Log
+      </div>
+      <p className="mt-1.5" style={{ fontFamily: SANS, fontSize: 13, color: TOKENS.inkFaint }}>
+        A coffee consistency tracker.
+      </p>
+
+      <h1 className="mt-16" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 32, color: TOKENS.ink }}>
+        Welcome back
+      </h1>
+      <p
+        className="mt-3"
+        style={{ fontFamily: SANS, fontSize: 14, color: TOKENS.inkFaint, lineHeight: 1.55, maxWidth: 340 }}
+      >
+        Sign in to keep every brew in one place — method, beans, parameters, taste.
       </p>
 
       <button
         type="button"
         onClick={handleGoogle}
         disabled={loading}
-        className="bl-press bl-chip w-full py-2.5 rounded-sm text-[12px] tracking-[0.08em] uppercase flex items-center justify-center gap-2.5"
+        className="bl-press mt-11 w-full py-[15px] rounded-full flex items-center justify-center gap-2.5"
         style={{
           fontFamily: SANS,
-          fontWeight: 700,
-          border: `1px solid ${TOKENS.rule}`,
-          background: "transparent",
+          fontWeight: 600,
+          fontSize: 15,
+          background: TOKENS.card,
           color: TOKENS.ink,
+          border: `1px solid ${TOKENS.rule}`,
           opacity: loading ? 0.6 : 1,
           cursor: loading ? "default" : "pointer",
         }}
       >
-        {loading ? <Loader2 size={14} className="animate-spin" /> : <GoogleMark />}
+        {loading ? <Loader2 size={18} className="animate-spin" /> : <GoogleMark />}
         Continue with Google
       </button>
+      <p className="mt-[18px]" style={{ fontFamily: SANS, fontSize: 12, color: TOKENS.inkFaint }}>
+        Google only — no password to manage.
+      </p>
 
       {error && (
         <p
           className="mt-4 text-[14px]"
-          style={{ fontFamily: SERIF, color: TOKENS.red }}
+          style={{ fontFamily: SANS, color: TOKENS.red }}
           role="alert"
         >
           {error}

@@ -34,8 +34,8 @@ function Tab({ label, active, onClick }) {
       style={{
         fontFamily: SANS,
         fontWeight: 700,
-        color: active ? TOKENS.green : TOKENS.inkFaint,
-        borderBottom: `2px solid ${active ? TOKENS.green : "transparent"}`,
+        color: active ? TOKENS.espresso : TOKENS.inkFaint,
+        borderBottom: `2px solid ${active ? TOKENS.espresso : "transparent"}`,
       }}
     >
       {label}
@@ -215,8 +215,8 @@ export default function App() {
                 style={{
                   fontFamily: MONO,
                   fontWeight: exportFormat === fmt ? 600 : 400,
-                  background: exportFormat === fmt ? TOKENS.greenSoft : "transparent",
-                  color: exportFormat === fmt ? TOKENS.green : TOKENS.inkFaint,
+                  background: exportFormat === fmt ? TOKENS.espressoSoft : "transparent",
+                  color: exportFormat === fmt ? TOKENS.espresso : TOKENS.inkFaint,
                 }}
               >
                 {fmt}
@@ -252,7 +252,7 @@ export default function App() {
                 fontFamily: MONO,
                 fontWeight: 600,
                 color: TOKENS.card,
-                background: TOKENS.amber,
+                background: TOKENS.caramel,
               }}
               title="Not the version your friends use"
             >
