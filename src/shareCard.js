@@ -446,7 +446,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   }
 
   // ---- Flavour tags ------------------------------------------------------
-  // Translucent white pills rather than the app's the app's tinted ones: over a photo
+  // Translucent white pills rather than the app's tinted ones: over a photo
   // a frosted fill stays legible against whatever is behind it, where a light
   // solid would flatten into a row of blank shapes.
   if (chips.height) {
