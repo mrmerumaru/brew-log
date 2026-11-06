@@ -59,6 +59,7 @@ import {
 import ShareSheet from "./ShareSheet";
 import { APP_ICON } from "./env";
 import { compressPhoto, compressThumbnail } from "./image";
+import { t, useLang, presetLabel } from "./i18n";
 import {
   MAX_CUSTOM_FLAVORS,
   addCustom,
@@ -211,21 +212,23 @@ function StepLabel({ mark, title, done }) {
   );
 }
 
-const STEPS = ["Drink", "Beans", "Equipment", "Brew", "Taste"];
+// Short names for the progress dots. Keys, not words — the section headings
+// further down use the fuller names (Parameters vs Brew).
+const STEPS = ["nav.drink", "nav.beans", "nav.equipment", "nav.brew", "nav.taste"];
 
 // Tappable, so editing one field on a saved brew doesn't mean paging through
 // the whole form to reach it.
 function StepNav({ step, onGo }) {
   return (
     <div className="px-6 pt-5 flex items-center gap-2">
-      {STEPS.map((title, i) => {
+      {STEPS.map((key, i) => {
         const active = i === step;
         return (
           <button
-            key={title}
+            key={key}
             type="button"
             onClick={() => onGo(i)}
-            aria-label={`Step ${i + 1}: ${title}`}
+            aria-label={t("form.nav.step", { n: i + 1, name: t(key) })}
             aria-current={active ? "step" : undefined}
             className="bl-press bl-quiet flex-1 flex flex-col items-center gap-1.5 pb-1"
           >
@@ -244,7 +247,7 @@ function StepNav({ step, onGo }) {
                 color: active ? TOKENS.espresso : TOKENS.inkFaint,
               }}
             >
-              {title}
+              {t(key)}
             </span>
           </button>
         );
@@ -294,7 +297,7 @@ function CustomChip({ label, active, onClick, onRemove }) {
         type="button"
         onClick={onClick}
         className="bl-press text-[14px]"
-        aria-label={`Toggle ${label}`}
+        aria-label={t("form.aria.toggleCustomTag", { label })}
       >
         {label}
       </button>
@@ -302,8 +305,8 @@ function CustomChip({ label, active, onClick, onRemove }) {
         type="button"
         onClick={onRemove}
         className="bl-press rounded-full p-0.5"
-        aria-label={`Remove custom tag ${label}`}
-        title="Remove tag"
+        aria-label={t("form.aria.removeCustomTag", { label })}
+        title={t("form.removeTag")}
         style={{ color: TOKENS.inkFaint }}
       >
         <X size={11} />
@@ -405,6 +408,9 @@ export default function BrewForm({
   onSaved,
   onExitEdit,
 }) {
+  // Subscribing to the language re-renders the form on a switch; every label
+  // below goes through t() at render time.
+  useLang();
   const isEditing = Boolean(brew);
   // For a new brew the user hasn't picked a method yet, so seed the
   // carry-forward with the most recent brew of any method. The form then
@@ -681,12 +687,12 @@ export default function BrewForm({
     if (!result.added) {
       // Map the helper's reasons to a single short message.
       const messages = {
-        builtin: "Already in the built-in list.",
-        duplicate: "You've already added that tag.",
-        cap: `You can keep up to ${MAX_CUSTOM_FLAVORS} custom tags.`,
-        invalid: "Tags can't be empty or longer than 30 characters.",
+        builtin: t("form.tag.builtin"),
+        duplicate: t("form.tag.duplicate"),
+        cap: t("form.tag.cap", { n: MAX_CUSTOM_FLAVORS }),
+        invalid: t("form.tag.invalid"),
       };
-      setFlavorError(messages[result.reason] ?? "Couldn't add that tag.");
+      setFlavorError(messages[result.reason] ?? t("form.tag.failed"));
       return;
     }
     setCustomFlavors(result.list);
@@ -783,7 +789,7 @@ export default function BrewForm({
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setError("You're not signed in any more. Reload the page and sign in again.");
+        setError(t("form.err.signedOut"));
         return;
       }
 
@@ -845,7 +851,7 @@ export default function BrewForm({
         return;
       }
 
-      const verb = isEditing ? "Changes saved" : "Brew saved";
+      const verb = isEditing ? t("form.changesSaved") : t("form.brewSaved");
       // Hoisted so the share sheet can reuse the blob that was actually
       // uploaded, rather than re-encoding the original.
       let uploaded = null;
@@ -872,7 +878,7 @@ export default function BrewForm({
 
         if (uploadError) {
           // The brew row is already written — say so rather than implying total failure.
-          setError(`${verb}, but the photo didn't upload: ${uploadError.message}`);
+          setError(t("form.err.photoUpload", { verb, msg: uploadError.message }));
           onSaved?.();
           return;
         }
@@ -891,7 +897,7 @@ export default function BrewForm({
             .eq("id", row.id);
 
           if (pathError) {
-            setError(`${verb} and photo uploaded, but linking them failed: ${pathError.message}`);
+            setError(t("form.err.photoLink", { verb, msg: pathError.message }));
             onSaved?.();
             return;
           }
@@ -914,7 +920,7 @@ export default function BrewForm({
 
           if (thumbError) {
             // Original saved fine — just say so.
-            setError(`${verb} and photo saved, but the thumbnail didn't: ${thumbError.message}`);
+            setError(t("form.err.thumb", { verb, msg: thumbError.message }));
           } else {
             const previousThumbPath = isEditing ? brew.thumb_path : null;
             if (previousThumbPath && previousThumbPath !== thumbPath) {
@@ -927,7 +933,7 @@ export default function BrewForm({
                 .eq("id", row.id);
 
               if (thumbPathError) {
-                setError(`${verb} and photo saved, but linking the thumbnail failed: ${thumbPathError.message}`);
+                setError(t("form.err.thumbLink", { verb, msg: thumbPathError.message }));
               }
             }
           }
@@ -949,7 +955,7 @@ export default function BrewForm({
       resetAfterSave(row);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError(err?.message ?? "Something went wrong saving this brew.");
+      setError(err?.message ?? t("form.err.save"));
     } finally {
       setSaving(false);
     }
@@ -986,7 +992,7 @@ export default function BrewForm({
               letterSpacing: "0.01em",
             }}
           >
-            {isEditing ? "Edit Brew" : "Brew Log"}
+            {isEditing ? t("form.editBrew") : "Brew Log"}
           </span>
         </div>
         <div className="text-right">
@@ -998,7 +1004,7 @@ export default function BrewForm({
               letterSpacing: "0.08em",
             }}
           >
-            RATIO
+            {t("form.ratio")}
           </div>
           <div
             style={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: TOKENS.caramel }}
@@ -1014,7 +1020,7 @@ export default function BrewForm({
           style={{ background: TOKENS.espressoSoft, borderBottom: `1px solid ${TOKENS.rule}` }}
         >
           <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.espresso, letterSpacing: "0.08em" }}>
-            {fromRepeat ? "BREWING THIS AGAIN" : "SETUP CARRIED OVER"}
+            {fromRepeat ? t("form.brewingAgain") : t("form.setupCarried")}
           </span>
           <button
             type="button"
@@ -1022,7 +1028,7 @@ export default function BrewForm({
             className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
             style={{ fontFamily: MONO, color: TOKENS.espresso, textDecoration: "underline" }}
           >
-            Start blank
+            {t("form.startBlank")}
           </button>
         </div>
       )}
@@ -1037,23 +1043,23 @@ export default function BrewForm({
         {step === 0 && (
           <>
   {/* 01 Drink */}
-          <StepLabel mark="A" title="Drink" done={!!drink} />
+          <StepLabel mark="A" title={t("step.drink")} done={!!drink} />
           <Field
-            label="What did you make?"
+            label={t("field.whatMake")}
             value={drink}
             onChange={setDrink}
-            placeholder="Iced Latte"
+            placeholder={presetLabel("Iced Latte")}
             suggestions={drinkSuggestions}
           />
           <Divider />
 
   {/* 02 Method */}
-          <StepLabel mark="B" title="Method" done={!!method} />
+          <StepLabel mark="B" title={t("step.method")} done={!!method} />
           <div className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
               <Chip
                 key={m}
-                label={m}
+                label={presetLabel(m)}
                 active={methodChoice === m}
                 onClick={() => setMethodChoice(m)}
               />
@@ -1070,10 +1076,10 @@ export default function BrewForm({
           {isOtherMethod && (
             <div className="mt-4">
               <Field
-                label="Which method?"
+                label={t("field.whichMethod")}
                 value={customMethod}
                 onChange={setCustomMethod}
-                placeholder="Siphon"
+                placeholder={presetLabel("Siphon")}
                 suggestions={customMethodSuggestions}
               />
             </div>
@@ -1084,18 +1090,18 @@ export default function BrewForm({
         {step === 1 && (
           <>
   {/* 04 Beans */}
-          <StepLabel mark="C" title="Beans" done={isBlend ? blendNamed : !!beanName} />
+          <StepLabel mark="C" title={t("step.beans")} done={isBlend ? blendNamed : !!beanName} />
 
           {/* Single origin vs blend leads the section, since it decides which
               fields follow. Tapping the active chip clears it, so a bag you're
               unsure about stays unrecorded rather than being guessed. */}
           <div className="flex flex-wrap gap-2 mb-5">
-            {BEAN_TYPES.map((t) => (
+            {BEAN_TYPES.map((bt) => (
               <Chip
-                key={t}
-                label={t}
-                active={beanType === t}
-                onClick={() => setBeanType(beanType === t ? "" : t)}
+                key={bt}
+                label={presetLabel(bt)}
+                active={beanType === bt}
+                onClick={() => setBeanType(beanType === bt ? "" : bt)}
               />
             ))}
           </div>
@@ -1106,7 +1112,7 @@ export default function BrewForm({
                   by one roaster — so it sits above the per-bean rows. */}
               <div className="mb-5">
                 <Field
-                  label="Roastery"
+                  label={t("field.roastery")}
                   value={beanName}
                   onChange={setBeanName}
                   placeholder="Elephant Grounds"
@@ -1131,13 +1137,13 @@ export default function BrewForm({
                         letterSpacing: "0.1em",
                       }}
                     >
-                      BEAN {i + 1}
+                      {t("form.beanN", { n: i + 1 })}
                     </span>
                     {components.length > 2 && (
                       <button
                         type="button"
                         onClick={() => removeComponent(i)}
-                        aria-label={`Remove bean ${i + 1}`}
+                        aria-label={t("form.removeBean", { n: i + 1 })}
                         style={{ color: TOKENS.rule }}
                       >
                         <X size={13} />
@@ -1147,14 +1153,14 @@ export default function BrewForm({
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-4">
                     <Field
-                      label="Origin"
+                      label={t("field.origin")}
                       value={c.origin}
                       onChange={(v) => updateComponent(i, "origin", v)}
-                      placeholder="Brazil"
+                      placeholder={presetLabel("Brazil")}
                       suggestions={suggestions.origin}
                     />
                     <Field
-                      label="Share"
+                      label={t("field.proportion")}
                       value={c.percent}
                       onChange={(v) => updateComponent(i, "percent", v)}
                       placeholder="50"
@@ -1165,18 +1171,18 @@ export default function BrewForm({
                     {/* A specific lot or varietal, if the bag names one. Shown on
                         the share card only when this component has no origin. */}
                     <Field
-                      label="Lot / bean"
+                      label={t("field.lotBean")}
                       value={c.name}
                       onChange={(v) => updateComponent(i, "name", v)}
-                      placeholder="Optional"
+                      placeholder={t("field.optional")}
                     />
                     {/* A datalist rather than chips: process repeats per bean, and
                         four chip rows per component would swamp the form. */}
                     <Field
-                      label="Process"
+                      label={t("field.process")}
                       value={c.process}
                       onChange={(v) => updateComponent(i, "process", v)}
-                      placeholder="Natural"
+                      placeholder={presetLabel("Natural")}
                       suggestions={PROCESSES}
                     />
                   </div>
@@ -1191,7 +1197,7 @@ export default function BrewForm({
                     className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                     style={{ fontFamily: MONO, color: TOKENS.espresso, textDecoration: "underline" }}
                   >
-                    + Add bean
+                    {t("form.addBean")}
                   </button>
                 ) : (
                   <span />
@@ -1215,23 +1221,23 @@ export default function BrewForm({
             <>
               <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
                 <Field
-                  label="Name / roaster"
+                  label={t("field.nameRoaster")}
                   value={beanName}
                   onChange={setBeanName}
                   placeholder="Tim Wendelboe"
                   suggestions={suggestions.beanName}
                 />
                 <Field
-                  label="Origin"
+                  label={t("field.origin")}
                   value={origin}
                   onChange={setOrigin}
-                  placeholder="Ethiopia"
+                  placeholder={presetLabel("Ethiopia")}
                   suggestions={suggestions.origin}
                 />
               </div>
               <div className="flex flex-wrap gap-2 mb-3">
-                {PROCESSES.map((p) => (
-                  <Chip key={p} label={p} active={process === p} onClick={() => setProcess(p)} />
+                {PROCESSES.map((pr) => (
+                  <Chip key={pr} label={presetLabel(pr)} active={process === pr} onClick={() => setProcess(pr)} />
                 ))}
               </div>
             </>
@@ -1240,30 +1246,30 @@ export default function BrewForm({
           {/* Roast level and date apply to the bag either way — a blend is
               roasted as one. */}
           <div className="grid grid-cols-2 gap-x-4 mb-4">
-            <Field label="Roast date" type="date" value={roastDate} onChange={setRoastDate} />
+            <Field label={t("field.roastDate")} type="date" value={roastDate} onChange={setRoastDate} />
           </div>
           <div className="flex flex-wrap gap-2">
             {ROASTS.map((r) => (
-              <Chip key={r} label={r} active={roast === r} onClick={() => setRoast(r)} />
+              <Chip key={r} label={presetLabel(r)} active={roast === r} onClick={() => setRoast(r)} />
             ))}
           </div>
           <Divider />
 
   {/* 05 Milk — optional; a long black just leaves this blank */}
-          <StepLabel mark="D" title="Milk" done={!!milkBrand || !!milkType} />
+          <StepLabel mark="D" title={t("step.milk")} done={!!milkBrand || !!milkType} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
-              label="Brand"
+              label={t("field.brand")}
               value={milkBrand}
               onChange={setMilkBrand}
               placeholder="Greenfields"
               suggestions={suggestions.milkBrand}
             />
             <Field
-              label="Kind"
+              label={t("field.kind")}
               value={milkType}
               onChange={setMilkType}
-              placeholder="Fresh Milk"
+              placeholder={presetLabel("Fresh Milk")}
               suggestions={milkTypeSuggestions}
             />
           </div>
@@ -1273,24 +1279,24 @@ export default function BrewForm({
         {step === 2 && (
           <>
   {/* 03 Equipment */}
-          <StepLabel mark="E" title="Equipment" done={!!machineBrand || !!grinder} />
+          <StepLabel mark="E" title={t("step.equipment")} done={!!machineBrand || !!grinder} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
-              label="Brewer brand"
+              label={t("field.brewerBrand")}
               value={machineBrand}
               onChange={setMachineBrand}
               placeholder="Hario"
               suggestions={suggestions.machineBrand}
             />
             <Field
-              label="Brewer model"
+              label={t("field.brewerModel")}
               value={machineModel}
               onChange={setMachineModel}
               placeholder="V60-02"
               suggestions={suggestions.machineModel}
             />
             <Field
-              label="Grinder"
+              label={t("field.grinder")}
               value={grinder}
               onChange={setGrinder}
               placeholder="Comandante C40"
@@ -1303,10 +1309,10 @@ export default function BrewForm({
         {step === 3 && (
           <>
   {/* 06 Parameters */}
-          <StepLabel mark="F" title="Parameters" done={!!dose && !!water} />
+          <StepLabel mark="F" title={t("step.parameters")} done={!!dose && !!water} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Field
-              label="Dose"
+              label={t("field.dose")}
               value={dose}
               onChange={setDose}
               mono
@@ -1314,7 +1320,7 @@ export default function BrewForm({
               inputMode="decimal"
             />
             <Field
-              label="Water"
+              label={t("field.water")}
               value={water}
               onChange={setWater}
               mono
@@ -1322,7 +1328,7 @@ export default function BrewForm({
               inputMode="decimal"
             />
             <Field
-              label="Temp"
+              label={t("field.temp")}
               value={temp}
               onChange={setTemp}
               mono
@@ -1335,33 +1341,33 @@ export default function BrewForm({
                 something anyone can type. */}
             {isHourTime ? (
               <Field
-                label="Time"
+                label={t("field.time")}
                 value={timeHours}
                 onChange={setTimeHours}
                 mono
-                suffix="hours"
+                suffix={t("unit.hours")}
                 inputMode="decimal"
                 placeholder="12"
               />
             ) : (
               <div className="grid grid-cols-2 gap-x-3">
                 <Field
-                  label="Time"
+                  label={t("field.time")}
                   value={timeMin}
                   onChange={setTimeMin}
                   mono
-                  suffix="min"
+                  suffix={t("unit.min")}
                   inputMode="numeric"
                   placeholder="2"
                 />
                 <Field
                   // Shares the "Time" label with the box beside it.
                   label=""
-                  ariaLabel="Brew time seconds"
+                  ariaLabel={t("field.aria.brewTimeSeconds")}
                   value={timeSec}
                   onChange={setTimeSec}
                   mono
-                  suffix="sec"
+                  suffix={t("unit.sec")}
                   inputMode="numeric"
                   placeholder="45"
                 />
@@ -1372,7 +1378,7 @@ export default function BrewForm({
                 meaningless without knowing whether it counts clicks, dial
                 numbers or microns. */}
             <Field
-              label="Grind size"
+              label={t("field.grindSize")}
               value={grindSize}
               onChange={setGrindSize}
               placeholder="18"
@@ -1380,10 +1386,10 @@ export default function BrewForm({
               inputMode="decimal"
             />
             <Field
-              label="Unit"
+              label={t("field.unit")}
               value={grindUnit}
               onChange={setGrindUnit}
-              placeholder="clicks"
+              placeholder={presetLabel("clicks")}
               suggestions={grindUnitSuggestions}
             />
             {/* The fine-tune dial on the side of the grinder. Optional, and on
@@ -1391,7 +1397,7 @@ export default function BrewForm({
                 count in different units on the same grinder. Lives next to
                 the grind size it offsets, not next to the grinder itself. */}
             <Field
-              label="Micro-adjust"
+              label={t("field.microAdjust")}
               value={microAdjustment}
               onChange={setMicroAdjustment}
               placeholder="+3"
@@ -1399,10 +1405,10 @@ export default function BrewForm({
               inputMode="decimal"
             />
             <Field
-              label="Micro unit"
+              label={t("field.microUnit")}
               value={microAdjustmentUnit}
               onChange={setMicroAdjustmentUnit}
-              placeholder="clicks"
+              placeholder={presetLabel("clicks")}
               suggestions={microAdjustmentUnitSuggestions}
             />
           </div>
@@ -1420,7 +1426,7 @@ export default function BrewForm({
                     letterSpacing: "0.1em",
                   }}
                 >
-                  POURS
+                  {t("form.pours")}
                 </span>
                 {poursWater > 0 && (
                   <span
@@ -1433,7 +1439,7 @@ export default function BrewForm({
                       color: num(water) === poursWater ? TOKENS.caramel : TOKENS.inkFaint,
                     }}
                   >
-                    {poursWater}g TOTAL
+                    {poursWater}g {t("form.total")}
                     {num(water) != null && num(water) !== poursWater ? " \u2733" : ""}
                   </span>
                 )}
@@ -1443,7 +1449,7 @@ export default function BrewForm({
                   either way, since a partial log beats an abandoned one. */}
               {num(pours[0]?.water) == null && (
                 <p className="text-[12px] mt-1" style={{ fontFamily: SERIF, color: TOKENS.caramel }}>
-                  Pour 1 has no water recorded — this brew won't be reproducible.
+                  {t("form.pourNoWater")}
                 </p>
               )}
 
@@ -1457,7 +1463,7 @@ export default function BrewForm({
                     <span
                       style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
                     >
-                      POUR {i + 1}
+                      {t("form.pourN", { n: i + 1 })}
                     </span>
                     <span className="flex items-center gap-3">
                       <span
@@ -1470,7 +1476,7 @@ export default function BrewForm({
                         <button
                           type="button"
                           onClick={() => removePour(i)}
-                          aria-label={`Remove pour ${i + 1}`}
+                          aria-label={t("form.removePour", { n: i + 1 })}
                           style={{ color: TOKENS.rule }}
                         >
                           <X size={13} />
@@ -1482,29 +1488,29 @@ export default function BrewForm({
                   <div className="grid grid-cols-2 gap-x-4">
                     <div className="grid grid-cols-2 gap-x-2">
                       <Field
-                        label="At"
-                        ariaLabel={`Pour ${i + 1} minutes`}
+                        label={t("field.at")}
+                        ariaLabel={t("field.aria.pourMinutes", { n: i + 1 })}
                         value={p.timeMin}
                         onChange={(v) => updatePour(i, "timeMin", v)}
                         mono
-                        suffix="min"
+                        suffix={t("unit.min")}
                         inputMode="numeric"
                         placeholder="0"
                       />
                       <Field
                         // Shares the "At" label with the box beside it.
                         label=""
-                        ariaLabel={`Pour ${i + 1} seconds`}
+                        ariaLabel={t("field.aria.pourSeconds", { n: i + 1 })}
                         value={p.timeSec}
                         onChange={(v) => updatePour(i, "timeSec", v)}
                         mono
-                        suffix="sec"
+                        suffix={t("unit.sec")}
                         inputMode="numeric"
                         placeholder="00"
                       />
                     </div>
                     <Field
-                      label="Water"
+                      label={t("field.water")}
                       value={p.water}
                       onChange={(v) => updatePour(i, "water", v)}
                       mono
@@ -1523,7 +1529,7 @@ export default function BrewForm({
                   className="bl-press bl-quiet mt-4 text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.espresso, textDecoration: "underline" }}
                 >
-                  + Add pour
+                  {t("form.addPour")}
                 </button>
               )}
             </div>
@@ -1534,10 +1540,10 @@ export default function BrewForm({
         {step === 4 && (
           <>
   {/* 07 Tasting */}
-          <StepLabel mark="G" title="Tasting Notes" done={flavors.length > 0} />
+          <StepLabel mark="G" title={t("step.tasting")} done={flavors.length > 0} />
           <div className="flex flex-wrap gap-2 mb-3">
             {FLAVORS.map((f) => (
-              <Chip key={f} label={f} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
+              <Chip key={f} label={presetLabel(f)} active={flavors.includes(f)} onClick={() => toggleFlavor(f)} />
             ))}
             {customFlavors.map((f) => (
               <CustomChip
@@ -1567,9 +1573,9 @@ export default function BrewForm({
                     submitCustomFlavor();
                   }
                 }}
-                placeholder="Add tag…"
+                placeholder={t("form.addTagPlaceholder")}
                 maxLength={30}
-                aria-label="New flavour tag"
+                aria-label={t("form.newFlavorTag")}
                 className="bg-transparent outline-none text-[13px] w-24"
                 style={{ fontFamily: SERIF, color: TOKENS.ink }}
               />
@@ -1577,7 +1583,7 @@ export default function BrewForm({
                 type="button"
                 onClick={submitCustomFlavor}
                 disabled={!newFlavor.trim()}
-                aria-label="Add tag"
+                aria-label={t("form.addTag")}
                 className="bl-press rounded-full p-0.5 disabled:opacity-30"
                 style={{ color: TOKENS.espresso }}
               >
@@ -1599,7 +1605,7 @@ export default function BrewForm({
               className="text-[11px] mb-3"
               style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.06em" }}
             >
-              {MAX_CUSTOM_FLAVORS}/{MAX_CUSTOM_FLAVORS} CUSTOM TAGS
+              {t("form.customTagsCap", { n: MAX_CUSTOM_FLAVORS })}
             </p>
           )}
 
@@ -1612,7 +1618,7 @@ export default function BrewForm({
                 letterSpacing: "0.1em",
               }}
             >
-              RATING
+              {t("form.rating")}
             </span>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -1620,7 +1626,7 @@ export default function BrewForm({
                   key={i}
                   type="button"
                   onClick={() => setRating(i)}
-                  aria-label={`${i} of 5 cups`}
+                  aria-label={t("form.aria.rating", { n: i })}
                   className="bl-press p-0.5"
                   style={{ color: i <= rating ? TOKENS.caramel : TOKENS.rule }}
                 >
@@ -1633,7 +1639,7 @@ export default function BrewForm({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Anything else worth remembering about this cup…"
+            placeholder={t("form.notesPlaceholder")}
             rows={2}
             className="bl-input w-full bg-transparent outline-none resize-none text-[14px] pb-1.5"
             style={{
@@ -1657,7 +1663,7 @@ export default function BrewForm({
               }}
             >
               {photo ? (
-                <img src={photo} alt="Brew" className="w-full h-full object-cover" />
+                <img src={photo} alt={t("form.photoAlt")} className="w-full h-full object-cover" />
               ) : (
                 <Camera size={18} style={{ color: TOKENS.inkFaint }} />
               )}
@@ -1687,12 +1693,12 @@ export default function BrewForm({
               >
                 {saving && <Loader2 size={13} className="animate-spin" />}
                 {saving
-                  ? "Saving…"
+                  ? t("form.saving")
                   : saved
-                    ? "Saved ✓"
+                    ? t("form.saved")
                     : isEditing
-                      ? "Save Changes"
-                      : "Save Brew"}
+                      ? t("form.saveChanges")
+                      : t("form.saveBrew")}
               </button>
 
               {isEditing ? (
@@ -1702,8 +1708,8 @@ export default function BrewForm({
                   disabled={saving}
                   className="bl-press bl-quiet flex items-center justify-center w-11 rounded-sm shrink-0"
                   style={{ border: `1px solid ${TOKENS.rule}`, color: TOKENS.inkFaint }}
-                  aria-label="Cancel editing"
-                  title="Cancel"
+                  aria-label={t("form.cancelEditing")}
+                  title={t("form.cancel")}
                 >
                   <X size={15} />
                 </button>
@@ -1718,11 +1724,9 @@ export default function BrewForm({
                     color: lastSaved ? TOKENS.ink : TOKENS.rule,
                     cursor: lastSaved ? "pointer" : "default",
                   }}
-                  aria-label="Share the brew you just saved"
+                  aria-label={t("form.shareSaved")}
                   title={
-                    lastSaved
-                      ? "Share the brew you just saved"
-                      : "Save a brew first, then share it"
+                    lastSaved ? t("form.shareSaved") : t("form.shareFirst")
                   }
                 >
                   <Share2 size={15} />
@@ -1747,7 +1751,7 @@ export default function BrewForm({
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.inkFaint }}
           >
             <ChevronLeft size={14} />
-            Back
+            {t("form.back")}
           </button>
         ) : (
           <span />
@@ -1766,7 +1770,7 @@ export default function BrewForm({
               color: TOKENS.card,
             }}
           >
-            Next
+            {t("form.next")}
             <ChevronRight size={14} />
           </button>
         )}

@@ -13,6 +13,7 @@ import {
   shareCardFilename,
   shareOrDownload,
 } from "./shareCard";
+import { t, useLang, brewName } from "./i18n";
 
 const RATIO_KEYS = Object.keys(CARD_RATIOS);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -23,6 +24,9 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
  * history list so the two entry points can't drift apart.
  */
 export default function ShareSheet({ brew, photoBlob, onClose }) {
+  // Subscribing here re-renders the sheet (and redraws the card) on a
+  // language change, since the card's own text is drawn from t().
+  useLang();
   const [ratio, setRatio] = useState(DEFAULT_RATIO);
   const [transform, setTransform] = useState(DEFAULT_TRANSFORM);
   const [img, setImg] = useState(null);
@@ -78,7 +82,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       // React bails out when the value is unchanged, so this can't loop.
       setCanPan((prev) => (prev === next ? prev : next));
     } catch (err) {
-      setError(`Couldn't draw the card: ${err?.message ?? err}`);
+      setError(t("share.err.draw", { msg: err?.message ?? err }));
     }
   }, [brew, img, ratio, transform, loading, cardW, cardH]);
 
@@ -137,19 +141,17 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       const result = await shareOrDownload(
         blob,
         shareCardFilename(brew, ratio),
-        `${brew.drink || brew.method || "Brew"}${
-          brew.bean_name ? ` · ${brew.bean_name}` : ""
-        }`,
+        `${brewName(brew)}${brew.bean_name ? ` · ${brew.bean_name}` : ""}`,
       );
       if (result === "downloaded") {
-        setNotice("Saved to your downloads — this browser can't share files directly.");
+        setNotice(t("share.downloaded"));
       } else if (result === "shared") {
         onClose();
       }
       // 'cancelled' means the user dismissed the OS sheet: stay open so they
       // can adjust and try again rather than starting over.
     } catch (err) {
-      setError(`Couldn't share: ${err?.message ?? err}`);
+      setError(t("share.err.share", { msg: err?.message ?? err }));
     } finally {
       setSending(false);
     }
@@ -164,7 +166,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Share brew"
+      aria-label={t("share.title")}
     >
       <div
         className="w-full max-w-[380px] max-h-full flex flex-col rounded-sm overflow-hidden"
@@ -182,12 +184,12 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             className="text-[12px] uppercase tracking-[0.12em]"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
-            Share
+            {t("share.title")}
           </span>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("share.close")}
             className="bl-press bl-quiet"
             style={{ color: TOKENS.inkFaint }}
           >
@@ -221,7 +223,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                       color: active ? TOKENS.espresso : TOKENS.ink,
                     }}
                   >
-                    {CARD_RATIOS[key].label}
+                    {t(CARD_RATIOS[key].labelKey)}
                   </div>
                   <div
                     style={{
@@ -280,7 +282,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   className="shrink-0"
                   style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
                 >
-                  ZOOM
+                  {t("share.zoomLabel")}
                 </span>
                 <input
                   type="range"
@@ -293,7 +295,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   }
                   className="flex-1"
                   style={{ accentColor: TOKENS.espresso }}
-                  aria-label="Zoom photo"
+                  aria-label={t("share.zoom")}
                 />
                 <button
                   type="button"
@@ -301,16 +303,14 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
                   className="bl-press bl-quiet shrink-0 text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
                 >
-                  Reset
+                  {t("share.reset")}
                 </button>
               </div>
               <p
                 className="mb-4 text-[12px]"
                 style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
               >
-                {canPan
-                  ? "Drag the photo to reposition it."
-                  : "Zoom in to reposition the photo."}
+                {canPan ? t("share.dragHint") : t("share.zoomHint")}
               </p>
             </>
           ) : (
@@ -318,7 +318,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
               className="mb-4 text-[12px]"
               style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.5 }}
             >
-              {CARD_RATIOS[ratio].note}
+              {t(CARD_RATIOS[ratio].noteKey)}
             </p>
           )}
 
@@ -360,7 +360,7 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
             }}
           >
             {sending && <Loader2 size={13} className="animate-spin" />}
-            {sending ? "Sharing…" : "Share this card"}
+            {sending ? t("share.sharing") : t("share.shareCard")}
           </button>
         </div>
       </div>

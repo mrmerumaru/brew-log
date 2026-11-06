@@ -1,5 +1,6 @@
 import React from "react";
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
+import { t } from "./i18n";
 
 /**
  * Without this, a thrown render error unmounts the whole React tree and leaves
@@ -46,15 +47,14 @@ export default class ErrorBoundary extends React.Component {
             className="text-[16px] mb-4"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
-            Something went wrong
+            {t("error.title")}
           </h1>
 
           <p
             className="mb-5 text-[14px]"
             style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.6 }}
           >
-            The app hit an error it couldn't recover from. Nothing you'd already
-            saved is affected — reloading usually clears it.
+            {t("error.body")}
           </p>
 
           <p
@@ -82,7 +82,7 @@ export default class ErrorBoundary extends React.Component {
               color: TOKENS.card,
             }}
           >
-            Reload
+            {t("error.reload")}
           </button>
 
           {stack && (
@@ -91,7 +91,7 @@ export default class ErrorBoundary extends React.Component {
                 className="text-[10px] uppercase tracking-[0.08em] cursor-pointer"
                 style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
               >
-                Where it happened
+                {t("error.where")}
               </summary>
               <pre
                 className="mt-2 text-[12px] whitespace-pre-wrap"

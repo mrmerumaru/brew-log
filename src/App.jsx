@@ -8,6 +8,8 @@ import { TOKENS, SANS, MONO } from "./tokens";
 import { suggestionsFrom } from "./brew";
 import { IS_PRODUCTION } from "./env";
 import { downloadExport } from "./exportData";
+import LanguageToggle from "./LanguageToggle";
+import { t, useLang } from "./i18n";
 
 // Columns the form needs for carry-forward and autocomplete, plus the two
 // Insights reads, plus History (notes, photo_path, thumb_path). Deliberately
@@ -44,6 +46,9 @@ function Tab({ label, active, onClick }) {
 }
 
 export default function App() {
+  // Subscribing here re-renders the whole tree on a language change; every
+  // string below is resolved through t() during render.
+  useLang();
   const [session, setSession] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState("log");
@@ -178,26 +183,30 @@ export default function App() {
         {/* Row 1: tabs. */}
         <div className="flex items-center" style={{ borderBottom: `1px solid ${TOKENS.rule}` }}>
           <Tab
-            label={editing ? "Editing" : "Log"}
+            label={editing ? t("app.tab.editing") : t("app.tab.log")}
             active={tab === "log"}
             // Leaving the tab mid-edit would silently discard changes, so this
             // exits edit mode explicitly rather than stranding the form.
             onClick={() => (editing ? finishEdit() : setTab("log"))}
           />
           <Tab
-            label="History"
+            label={t("app.tab.history")}
             active={tab === "history"}
             onClick={() => (editing ? finishEdit() : setTab("history"))}
           />
           <Tab
-            label="Insights"
+            label={t("app.tab.insights")}
             active={tab === "insights"}
             onClick={() => (editing ? finishEdit() : setTab("insights"))}
           />
         </div>
         {/* Row 2: right-side controls. Split onto its own row so the format
             toggle, Export, Dev badge and Sign out don't crowd the tabs. */}
-        <div className="flex items-center justify-end gap-3 py-2">
+        <div className="flex items-center justify-between gap-3 py-2">
+          <LanguageToggle />
+          {/* Kept as one cluster so adding the switch above doesn't spread the
+              controls across the row. */}
+          <div className="flex items-center gap-3">
           {/* Export. The toggle stays put across clicks so the choice is
               persistent; only the Export button itself disables when there's
               nothing to dump (still loading, or zero brews). */}
@@ -235,13 +244,16 @@ export default function App() {
             }}
             title={
               !pastBrews
-                ? "Loading…"
+                ? t("app.exportTitle.loading")
                 : pastBrews.length === 0
-                  ? "Log a brew first"
-                  : `Download all ${pastBrews.length} brews as ${exportFormat.toUpperCase()}`
+                  ? t("app.exportTitle.empty")
+                  : t("app.exportTitle.download", {
+                      n: pastBrews.length,
+                      fmt: exportFormat.toUpperCase(),
+                    })
             }
           >
-            Export
+            {t("app.export")}
           </button>
           {/* Both environments point at the same database and look identical,
               so the only way to tell them apart is to say so. */}
@@ -254,9 +266,9 @@ export default function App() {
                 color: TOKENS.card,
                 background: TOKENS.caramel,
               }}
-              title="Not the version your friends use"
+              title={t("app.devTitle")}
             >
-              Dev
+              {t("app.dev")}
             </span>
           )}
           <button
@@ -265,8 +277,9 @@ export default function App() {
             className="bl-press bl-quiet text-[10px] uppercase tracking-[0.1em]"
             style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
           >
-            Sign out
+            {t("app.signOut")}
           </button>
+          </div>
         </div>
       </div>
 

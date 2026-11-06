@@ -3,6 +3,8 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TOKENS, SANS, SERIF } from "./tokens";
 import { APP_ICON } from "./env";
+import LanguageToggle from "./LanguageToggle";
+import { t, useLang } from "./i18n";
 
 // Google's brand mark. Inline rather than a remote asset so it works offline
 // and can't be blocked.
@@ -35,6 +37,9 @@ function GoogleMark() {
 // Email OTP is still enabled on the Supabase project, so restoring a fallback
 // is a UI change only — no configuration to redo.
 export default function Login() {
+  // Own subscription: Login is rendered by App's shell, and reading the
+  // language here keeps it correct even if that ever changes.
+  useLang();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -58,6 +63,12 @@ export default function Login() {
 
   return (
     <div className="w-full max-w-[360px] flex flex-col items-center text-center">
+      {/* Reachable before sign-in: App renders Login instead of the header, so
+          a Bahasa-only reader would otherwise have to get through an English
+          screen to find the setting. */}
+      <div className="w-full flex justify-end mb-2">
+        <LanguageToggle />
+      </div>
       <img
         src={APP_ICON}
         alt=""
@@ -74,17 +85,17 @@ export default function Login() {
         Brew Log
       </div>
       <p className="mt-1.5" style={{ fontFamily: SANS, fontSize: 13, color: TOKENS.inkFaint }}>
-        A coffee consistency tracker.
+        {t("login.tagline")}
       </p>
 
       <h1 className="mt-16" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 32, color: TOKENS.ink }}>
-        Welcome back
+        {t("login.heading")}
       </h1>
       <p
         className="mt-3"
         style={{ fontFamily: SANS, fontSize: 14, color: TOKENS.inkFaint, lineHeight: 1.55, maxWidth: 340 }}
       >
-        Sign in to keep every brew in one place — method, beans, parameters, taste.
+        {t("login.blurb")}
       </p>
 
       <button
@@ -104,10 +115,10 @@ export default function Login() {
         }}
       >
         {loading ? <Loader2 size={18} className="animate-spin" /> : <GoogleMark />}
-        Continue with Google
+        {t("login.google")}
       </button>
       <p className="mt-[18px]" style={{ fontFamily: SANS, fontSize: 12, color: TOKENS.inkFaint }}>
-        Google only — no password to manage.
+        {t("login.googleNote")}
       </p>
 
       {error && (

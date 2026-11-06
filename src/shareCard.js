@@ -12,6 +12,7 @@
 
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { formatBrewTime, ratioOf, milkLabel, originLabel } from "./brew";
+import { t, localeTag, presetLabel } from "./i18n";
 
 // Both ratios share one layout: the photo fills the card and the text sits over
 // a gradient scrim at the bottom. Adding an aspect is just another entry here.
@@ -22,15 +23,15 @@ import { formatBrewTime, ratioOf, milkLabel, originLabel } from "./brew";
 // of a much smaller image.
 export const CARD_RATIOS = {
   "9:16": {
-    label: "Story",
-    note: "Instagram Stories, Reels, TikTok",
+    labelKey: "card.story",
+    noteKey: "card.storyNote",
     w: 1080,
     h: 1920,
     flavorTags: true,
   },
   "4:5": {
-    label: "Post",
-    note: "Instagram feed, X, Threads",
+    labelKey: "card.post",
+    noteKey: "card.postNote",
     w: 1080,
     h: 1350,
     flavorTags: false,
@@ -280,32 +281,39 @@ export async function decodePhoto(blob) {
 function cardContent(brew) {
   return {
     // The drink is the headline. When there is one, the brewing method drops to
-    // the secondary line rather than disappearing.
-    headline: brew.drink || brew.method || "Brew",
+    // the secondary line rather than disappearing. Presets are translated for
+    // display only — the stored value is untouched.
+    headline: presetLabel(brew.drink) || presetLabel(brew.method) || t("history.brewFallback"),
     // How it was made and by whom, then the beans themselves.
     // "Espresso, Elephant Grounds" / "Blend · Brazil (50%), Aceh Gayo (50%)".
     // Method is omitted when it's already the headline (no drink recorded).
-    madeLine: [brew.drink ? brew.method : null, brew.bean_name?.trim()]
+    madeLine: [brew.drink ? presetLabel(brew.method) : null, brew.bean_name?.trim()]
       .filter(Boolean)
       .join(", "),
-    beanLine: [brew.bean_type?.trim(), originLabel(brew)].filter(Boolean).join(" · "),
-    milk: milkLabel(brew),
+    beanLine: [brew.bean_type ? presetLabel(brew.bean_type) : null, originLabel(brew)]
+      .filter(Boolean)
+      .join(" · "),
+    milk: milkLabel(brew, presetLabel),
     // Grind size and days-off-roast are deliberately absent: they're personal
     // repeatability data, still recorded on the brew and shown in history, but
     // they crowded the card without meaning much to anyone else.
     stats: [
       // Spaces stripped: the kerned draw below spaces the colon itself.
-    ["RATIO", ratioOf(brew)?.replace(/\s+/g, ""), { kern: ":" }],
-      ["DOSE", brew.dose_g ? `${brew.dose_g}g` : null],
-      ["TEMP", brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
-      ["TIME", formatBrewTime(brew.brew_time_s)],
+    [t("card.ratio"), ratioOf(brew)?.replace(/\s+/g, ""), { kern: ":" }],
+    [t("card.dose"), brew.dose_g ? `${brew.dose_g}g` : null],
+    [t("card.temp"), brew.water_temp_c ? `${brew.water_temp_c}°C` : null],
+    [
+      t("card.time"),
+      formatBrewTime(brew.brew_time_s, { h: t("unit.hourShort"), m: t("unit.minShort") }),
+    ],
     ].filter(([, v]) => v),
   };
 }
 
 function formattedDate(brew) {
   if (!brew.created_at) return null;
-  return new Date(brew.created_at).toLocaleDateString(undefined, {
+  // Follows the app's language rather than the machine's.
+  return new Date(brew.created_at).toLocaleDateString(localeTag(), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -360,7 +368,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
   const { headline, madeLine, beanLine, milk, stats } = cardContent(brew);
   // Only where the ratio has room for them — see CARD_RATIOS.
   const chips = spec.flavorTags
-    ? layoutChips(ctx, brew.flavor_tags ?? [], inner)
+    ? layoutChips(ctx, (brew.flavor_tags ?? []).map(presetLabel), inner)
     : { rows: [], height: 0 };
 
   // ---- Photo, full card --------------------------------------------------
@@ -476,7 +484,7 @@ function drawOverlay(ctx, brew, img, spec, transform) {
 
   ctx.font = `700 21px ${SANS}`;
   ctx.fillStyle = OVER_BRIGHT;
-  ctx.fillText("BREW LOG", PAD + MARK_SIZE + 10, footerTop);
+  ctx.fillText(t("card.brewLog"), PAD + MARK_SIZE + 10, footerTop);
 
   const date = formattedDate(brew);
   if (date) {

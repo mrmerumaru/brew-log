@@ -4,10 +4,14 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { applyTokens } from './tokens.js'
+import { applyDocumentLang } from './i18n.js'
 
 // Publish the palette as CSS custom properties before the first paint, so the
 // stylesheet's hover and focus rules have colours to work with.
 applyTokens()
+// And the language, so <html lang> is right from the first paint rather than
+// only after the user touches the switch.
+applyDocumentLang()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

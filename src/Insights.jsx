@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { beansLabel } from "./brew";
+import { t, useLang, presetLabel } from "./i18n";
 import {
   GOOD_RATING,
   MIN_GROUP,
@@ -90,13 +91,20 @@ function Ranking({ mark, title, groups, empty }) {
 }
 
 export default function Insights({ brews }) {
+  // Subscribing here re-renders the panel on a language switch.
+  useLang();
   const rows = useMemo(() => brews ?? [], [brews]);
 
   const stats = useMemo(() => summary(rows), [rows]);
   const contrast = useMemo(() => parameterContrast(rows), [rows]);
   const flavours = useMemo(() => flavoursOfBest(rows), [rows]);
   const best = useMemo(() => bestBrews(rows), [rows]);
-  const byMethod = useMemo(() => byDimension(rows, (r) => r.method), [rows]);
+  // Grouped on the raw stored method so "Pourover" and "Seduhan" can never
+  // split into two groups; only the displayed value is translated.
+  const byMethod = useMemo(
+    () => byDimension(rows, (r) => r.method).map((g) => ({ ...g, value: presetLabel(g.value) })),
+    [rows],
+  );
   const byBeans = useMemo(() => byDimension(rows, (r) => beansLabel(r)), [rows]);
   const byGrinder = useMemo(() => byDimension(rows, (r) => r.grinder), [rows]);
 
@@ -110,7 +118,7 @@ export default function Insights({ brews }) {
     return (
       <div className="bl-paper w-full max-w-[480px] rounded-sm px-6 py-10" style={card}>
         <p className="text-center text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}>
-          Nothing to read yet. Log a few brews and this fills in.
+          {t("insights.nothingYet")}
         </p>
       </div>
     );
@@ -120,24 +128,27 @@ export default function Insights({ brews }) {
     <div className="bl-paper w-full max-w-[480px] rounded-sm" style={card}>
       <div className="px-6 pt-6 pb-5" style={{ borderBottom: `2px solid ${TOKENS.caramel}` }}>
         <div className="flex flex-wrap gap-x-8 gap-y-4">
-          <Figure label="BREWS" value={stats.total} />
+          <Figure label={t("insights.brews")} value={stats.total} />
           <Figure
-            label="AVERAGE"
+            label={t("insights.average")}
             value={stats.averageRating ? stats.averageRating.toFixed(1) : "—"}
-            note={stats.rated < stats.total ? `${stats.rated} rated` : null}
+            note={stats.rated < stats.total ? t("insights.rated", { n: stats.rated }) : null}
           />
-          <Figure label={`${GOOD_RATING}★ AND UP`} value={stats.best} />
+          <Figure label={t("insights.goodAndUp", { n: GOOD_RATING })} value={stats.best} />
         </div>
       </div>
 
       <div className="px-6 py-6">
-        <Band mark="A" title="What your best cups share" />
+        <Band mark="A" title={t("insights.bestShareTitle")} />
 
         {contrast.rows.length === 0 ? (
           <p className="mb-7 text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.6 }}>
-            Not enough to compare yet. This needs at least {MIN_GROUP} brews rated{" "}
-            {GOOD_RATING}★ or above and {MIN_GROUP} below — you have {contrast.good} and{" "}
-            {contrast.rest}. Rating honestly on both sides is what makes the comparison work.
+            {t("insights.notEnough", {
+              min: MIN_GROUP,
+              good: GOOD_RATING,
+              goodCount: contrast.good,
+              restCount: contrast.rest,
+            })}
           </p>
         ) : (
           <div className="mb-7">
@@ -152,7 +163,7 @@ export default function Insights({ brews }) {
                 className="w-16 text-right"
                 style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.08em" }}
               >
-                REST
+                {t("insights.rest")}
               </span>
             </div>
 
@@ -163,7 +174,7 @@ export default function Insights({ brews }) {
                 style={{ borderTop: `1px dashed ${TOKENS.rule}` }}
               >
                 <span className="text-[14px]" style={{ fontFamily: SERIF, color: TOKENS.ink }}>
-                  {p.label}
+                  {t(`stats.${p.key}`)}
                 </span>
                 <span className="shrink-0 flex items-baseline gap-6">
                   <span
@@ -186,16 +197,19 @@ export default function Insights({ brews }) {
               className="mt-3 text-[12px]"
               style={{ fontFamily: SERIF, color: TOKENS.inkFaint, lineHeight: 1.5 }}
             >
-              From {contrast.good} brews at {GOOD_RATING}★ or above against {contrast.rest} below.
-              {!contrast.grindComparable &&
-                ` Grind is left out — you've used ${contrast.grinders} grinders, and the numbers don't mean the same thing on each.`}
+              {t("insights.fromContrast", {
+                good: contrast.good,
+                rating: GOOD_RATING,
+                rest: contrast.rest,
+              })}
+              {!contrast.grindComparable && t("insights.grindLeftOut", { n: contrast.grinders })}
             </p>
           </div>
         )}
 
         {flavours.length > 0 && (
           <>
-            <Band mark="B" title="Tastes like your best" />
+            <Band mark="B" title={t("insights.tastesLikeBest")} />
             <div className="flex flex-wrap gap-2 mb-7">
               {flavours.map((f) => (
                 <span
@@ -203,7 +217,7 @@ export default function Insights({ brews }) {
                   className="px-2.5 py-1 rounded-full text-[12px]"
                   style={{ fontFamily: SERIF, background: TOKENS.espressoSoft, color: TOKENS.espresso }}
                 >
-                  {f.tag}
+                  {presetLabel(f.tag)}
                   <span style={{ fontFamily: MONO, fontSize: 10 }}> {Math.round(f.share * 100)}%</span>
                 </span>
               ))}
@@ -213,23 +227,23 @@ export default function Insights({ brews }) {
 
         <Ranking
           mark="C"
-          title="By method"
+          title={t("insights.byMethod")}
           groups={byMethod}
-          empty={`No method has ${MIN_GROUP} rated brews yet.`}
+          empty={t("insights.noMethod", { n: MIN_GROUP })}
         />
         <Ranking
           mark="D"
-          title="By beans"
+          title={t("insights.byBeans")}
           groups={byBeans}
-          empty={`No bag has ${MIN_GROUP} rated brews yet.`}
+          empty={t("insights.noBag", { n: MIN_GROUP })}
         />
         {byGrinder.length > 0 && (
-          <Ranking mark="E" title="By grinder" groups={byGrinder} empty="" />
+          <Ranking mark="E" title={t("insights.byGrinder")} groups={byGrinder} empty="" />
         )}
 
         {best.length > 0 && (
           <>
-            <Band mark={byGrinder.length > 0 ? "F" : "E"} title="Worth repeating" />
+            <Band mark={byGrinder.length > 0 ? "F" : "E"} title={t("insights.worthRepeating")} />
             <div>
               {best.map((b) => (
                 <div
@@ -242,13 +256,13 @@ export default function Insights({ brews }) {
                       className="text-[14px] block truncate"
                       style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
                     >
-                      {b.drink || b.method || "Brew"}
+                      {b.drink || b.method || t("history.brewFallback")}
                     </span>
                     <span
                       className="text-[12px] block truncate"
                       style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
                     >
-                      {beansLabel(b) ?? "No bean recorded"}
+                      {beansLabel(b) ?? t("history.noBean")}
                     </span>
                   </span>
                   <span

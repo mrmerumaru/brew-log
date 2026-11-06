@@ -13,6 +13,7 @@ import {
   poursLabel,
   originLabel,
 } from "./brew";
+import { t, useLang, presetLabel, localeTag, brewName } from "./i18n";
 import ShareSheet from "./ShareSheet";
 import { shouldExpand, tapCard, toggleExpandAll } from "./brewHistoryExpand";
 import {
@@ -25,7 +26,9 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing sess
 
 function formatDate(iso) {
   if (!iso) return "";
-  return new Date(iso).toLocaleString(undefined, {
+  // Follows the app's language, not the machine's — passing `undefined` here
+  // meant an English UI showed Indonesian month names on an id-ID phone.
+  return new Date(iso).toLocaleString(localeTag(), {
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -49,7 +52,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search beans, origin, roaster…"
+        placeholder={t("history.search")}
         className="bl-input w-full bg-transparent outline-none pb-1.5 text-[14px] mb-3"
         style={{
           fontFamily: SERIF,
@@ -72,7 +75,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
               color: method === m ? TOKENS.espresso : TOKENS.inkFaint,
             }}
           >
-            {m}
+            {presetLabel(m)}
           </button>
         ))}
 
@@ -81,7 +84,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
             className="mr-1"
             style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
-            MIN
+            {t("history.min")}
           </span>
           {[1, 2, 3, 4, 5].map((i) => (
             <button
@@ -90,7 +93,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
               // Tapping the active threshold clears it, so there's always a way
               // back to "any rating" without hunting for the reset.
               onClick={() => setMinRating(minRating === i ? 0 : i)}
-              aria-label={`At least ${i} cups`}
+              aria-label={t("history.aria.minCups", { n: i })}
               className="bl-press p-0.5"
               style={{ color: i <= minRating ? TOKENS.caramel : TOKENS.rule }}
             >
@@ -107,7 +110,7 @@ function FilterBar({ brews, method, setMethod, query, setQuery, minRating, setMi
           className="bl-press bl-quiet mt-3 text-[10px] uppercase tracking-[0.08em]"
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, textDecoration: "underline" }}
         >
-          Clear filters
+          {t("history.clearFilters")}
         </button>
       )}
     </div>
@@ -134,7 +137,10 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
       type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      aria-label={`${brew.drink || brew.method || "Brew"} — tap to ${expanded ? "collapse" : "expand"}`}
+      aria-label={t("history.aria.toggle", {
+        name: brewName(brew),
+        action: t(expanded ? "history.action.collapse" : "history.action.expand"),
+      })}
       className="w-full text-left flex gap-3 p-3 items-center bl-press"
     >
       <div
@@ -159,11 +165,11 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
             className="text-[14px] truncate"
             style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
           >
-            {brew.drink || brew.method || "Brew"}
+            {brew.drink || brew.method || t("history.brewFallback")}
           </h3>
           <span
             className="shrink-0 flex items-center gap-0.5"
-            aria-label={`${brew.rating ?? 0} of 5 cups`}
+            aria-label={t("form.aria.rating", { n: brew.rating ?? 0 })}
           >
             {[1, 2, 3, 4, 5].map((i) => (
               <Coffee
@@ -181,10 +187,10 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
           style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
         >
           {/* method first, then roastery, then origin. Truncate falls back to
-              "No bean recorded" so the line is never blank. */}
+              t("history.noBean") so the line is never blank. */}
           {[brew.method, brew.bean_name, originLabel(brew)]
             .filter(Boolean)
-            .join(" · ") || "No bean recorded"}
+            .join(" · ") || t("history.noBean")}
         </p>
 
         <div className="flex items-center justify-between gap-2 mt-1.5">
@@ -200,7 +206,7 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
                     color: TOKENS.espresso,
                   }}
                 >
-                  {tag}
+                  {presetLabel(tag)}
                 </span>
               ))
             ) : (
@@ -208,7 +214,7 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
                 className="text-[11px] italic"
                 style={{ fontFamily: SERIF, color: TOKENS.rule }}
               >
-                No tasting notes
+                {t("history.noNotes")}
               </span>
             )}
             {brew.flavor_tags?.length > 3 && (
@@ -243,13 +249,18 @@ function CollapsedBrew({ brew, photoUrl, onToggle, expanded }) {
 
 function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onToggle, deleting, sharing }) {
   const ratio = ratioOf(brew);
-  const brewTime = formatBrewTime(brew.brew_time_s);
+  // Unit words in these labels are stored values, so they're translated at
+  // display time via presetLabel; the numbers are not touched.
+  const brewTime = formatBrewTime(brew.brew_time_s, {
+    h: t("unit.hourShort"),
+    m: t("unit.minShort"),
+  });
   // Relative to when this brew was made, not today — see daysOffRoast.
   const rest = daysOffRoast(brew.roast_date, brew.created_at);
-  const milk = milkLabel(brew);
-  const grind = grindLabel(brew);
-  const microAdjust = microAdjustLabel(brew);
-  const pours = poursLabel(brew);
+  const milk = milkLabel(brew, presetLabel);
+  const grind = grindLabel(brew, presetLabel);
+  const microAdjust = microAdjustLabel(brew, presetLabel);
+  const pours = poursLabel(brew, { h: t("unit.hourShort"), m: t("unit.minShort") });
   // Deleting is irreversible, so the trash icon arms a confirm rather than
   // firing straight away.
   const [confirming, setConfirming] = useState(false);
@@ -279,12 +290,12 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
               className="text-[14px] truncate"
               style={{ fontFamily: SANS, fontWeight: 700, color: TOKENS.ink }}
             >
-              {brew.drink || brew.method || "Brew"}
+              {brew.drink || brew.method || t("history.brewFallback")}
             </h3>
             <button
               type="button"
               onClick={onToggle}
-              aria-label="Collapse"
+              aria-label={t("history.collapse")}
               className="bl-press p-1"
               style={{ color: TOKENS.inkFaint }}
             >
@@ -299,7 +310,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
             {/* Method moves here once a drink is named, so it isn't lost. */}
             {[brew.drink ? brew.method : null, beansLabel(brew)]
               .filter(Boolean)
-              .join(" · ") || "No bean recorded"}
+              .join(" · ") || t("history.noBean")}
           </p>
 
           {/* Grouped with the beans line — both describe what went in the cup. */}
@@ -313,21 +324,21 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
           )}
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3">
-            <Meta label="RATIO" value={ratio} />
-            <Meta label="DOSE" value={brew.dose_g ? `${brew.dose_g}g` : null} />
-            <Meta label="TEMP" value={brew.water_temp_c ? `${brew.water_temp_c}°C` : null} />
-            <Meta label="TIME" value={brewTime} />
-            <Meta label="BEANS" value={brew.bean_type} />
-            <Meta label="GRIND" value={grind} />
-            <Meta label="MICRO" value={microAdjust} />
-            <Meta label="OFF ROAST" value={rest == null ? null : `${rest}d`} />
+            <Meta label={t("history.meta.ratio")} value={ratio} />
+            <Meta label={t("history.meta.dose")} value={brew.dose_g ? `${brew.dose_g}g` : null} />
+            <Meta label={t("history.meta.temp")} value={brew.water_temp_c ? `${brew.water_temp_c}°C` : null} />
+            <Meta label={t("history.meta.time")} value={brewTime} />
+            <Meta label={t("history.meta.beans")} value={brew.bean_type} />
+            <Meta label={t("history.meta.grind")} value={grind} />
+            <Meta label={t("history.meta.micro")} value={microAdjust} />
+            <Meta label={t("history.meta.offRoast")} value={rest == null ? null : `${rest}${t("history.unit.days")}`} />
           </div>
 
           {/* The pour schedule is the whole point of recording it — a pourover
               can't be reproduced from the totals alone. */}
           {pours && (
             <p className="text-[12px] mt-2" style={{ fontFamily: MONO, color: TOKENS.inkFaint }}>
-              <span style={{ letterSpacing: "0.1em", fontSize: 10 }}>POURS </span>
+              <span style={{ letterSpacing: "0.1em", fontSize: 10 }}>{t("history.pours")} </span>
               {pours}
             </p>
           )}
@@ -344,7 +355,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                     color: TOKENS.espresso,
                   }}
                 >
-                  {tag}
+                  {presetLabel(tag)}
                 </span>
               ))}
             </div>
@@ -377,12 +388,12 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                 style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint }}
               >
                 <Loader2 size={11} className="animate-spin" />
-                Deleting…
+                {t("history.deleting")}
               </span>
             ) : confirming ? (
               <span className="flex items-center gap-3">
                 <span style={{ fontFamily: MONO, fontSize: 10, color: TOKENS.inkFaint }}>
-                  Delete?
+                  {t("history.deleteConfirm")}
                 </span>
                 <button
                   type="button"
@@ -390,7 +401,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                   className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, color: TOKENS.inkFaint }}
                 >
-                  Cancel
+                  {t("form.cancel")}
                 </button>
                 <button
                   type="button"
@@ -398,7 +409,7 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                   className="bl-press bl-quiet text-[10px] uppercase tracking-[0.08em]"
                   style={{ fontFamily: MONO, fontWeight: 600, color: TOKENS.red }}
                 >
-                  Delete
+                  {t("history.delete")}
                 </button>
               </span>
             ) : (
@@ -406,8 +417,8 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                 <button
                   type="button"
                   onClick={() => onRepeat(brew)}
-                  aria-label={`Brew this ${brew.drink || brew.method || "brew"} again`}
-                  title="Brew this again"
+                  aria-label={t("history.aria.brewAgain", { name: brewName(brew) })}
+                  title={t("history.brewAgain")}
                   className="bl-press bl-quiet"
                   style={{ color: TOKENS.inkFaint }}
                 >
@@ -417,9 +428,9 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                   type="button"
                   onClick={() => onShare(brew)}
                   disabled={sharing}
-                  aria-label={`Share this ${brew.drink || brew.method || "brew"}`}
+                  aria-label={t("history.aria.share", { name: brewName(brew) })}
                   className="bl-press bl-quiet"
-                  title="Share brew"
+                  title={t("history.shareBrew")}
                   style={{ color: TOKENS.inkFaint }}
                 >
                   {sharing ? (
@@ -431,9 +442,9 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                 <button
                   type="button"
                   onClick={() => onEdit(brew, photoUrl)}
-                  aria-label={`Edit this ${brew.drink || brew.method || "brew"}`}
+                  aria-label={t("history.aria.edit", { name: brewName(brew) })}
                   className="bl-press bl-quiet"
-                  title="Edit brew"
+                  title={t("history.editBrew")}
                   style={{ color: TOKENS.inkFaint }}
                 >
                   <Pencil size={13} />
@@ -441,9 +452,9 @@ function ExpandedBrew({ brew, photoUrl, onEdit, onRepeat, onDelete, onShare, onT
                 <button
                   type="button"
                   onClick={() => setConfirming(true)}
-                  aria-label={`Delete this ${brew.drink || brew.method || "brew"}`}
+                  aria-label={t("history.aria.delete", { name: brewName(brew) })}
                   className="bl-press bl-danger"
-                  title="Delete brew"
+                  title={t("history.deleteBrew")}
                   style={{ color: TOKENS.rule }}
                 >
                   <Trash2 size={13} />
@@ -494,6 +505,9 @@ export default function BrewHistory({
   onEdit,
   onRepeat,
 }) {
+  // Subscribing here re-renders the list when the language changes; every
+  // label below resolves through t() during render.
+  useLang();
   // Brews come from App now — single fetch shared with the form and
   // Insights. App passes setBrews so this view can still reflect a delete
   // locally without a full refetch.
@@ -671,7 +685,7 @@ export default function BrewHistory({
       }
       setShareTarget({ brew, photoBlob });
     } catch (err) {
-      setDeleteError(`Couldn't prepare the share card: ${err?.message ?? err}`);
+      setDeleteError(t("history.err.shareCard", { msg: err?.message ?? err }));
     } finally {
       setSharingId(null);
     }
@@ -687,7 +701,7 @@ export default function BrewHistory({
     const { error: deleteError } = await supabase.from("brews").delete().eq("id", brew.id);
 
     if (deleteError) {
-      setDeleteError(`Couldn't delete that brew: ${deleteError.message}`);
+      setDeleteError(t("history.err.delete", { msg: deleteError.message }));
       setDeletingId(null);
       return;
     }
@@ -703,10 +717,7 @@ export default function BrewHistory({
         .remove([brew.photo_path]);
 
       if (storageError) {
-        setDeleteError(
-          `Brew deleted, but its photo is still in storage (${storageError.message}). ` +
-            `If this keeps happening, run supabase/002-photo-delete-policy.sql.`,
-        );
+        setDeleteError(t("history.err.photoLeft", { msg: storageError.message }));
       }
     }
 
@@ -717,10 +728,7 @@ export default function BrewHistory({
         .remove([brew.thumb_path]);
 
       if (thumbError) {
-        setDeleteError(
-          `Brew deleted, but its thumbnail is still in storage (${thumbError.message}). ` +
-            `If this keeps happening, run supabase/003-thumb-path.sql.`,
-        );
+        setDeleteError(t("history.err.thumbLeft", { msg: thumbError.message }));
       }
     }
 
@@ -744,7 +752,7 @@ export default function BrewHistory({
       <div className="py-16 text-center">
         <Coffee size={22} style={{ color: TOKENS.rule }} className="mx-auto mb-3" />
         <p style={{ fontFamily: SERIF, fontSize: 14, color: TOKENS.inkFaint }}>
-          No brews yet. Log one and it'll show up here.
+          {t("history.noBrews")}
         </p>
       </div>
     );
@@ -773,8 +781,8 @@ export default function BrewHistory({
           style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
         >
           {filtersActive
-            ? `${visible.length} of ${brews.length} brews`
-            : `${brews.length} ${brews.length === 1 ? "brew" : "brews"}`}
+            ? t("history.countOf", { shown: visible.length, total: brews.length })
+            : t("history.count", { n: brews.length })}
         </span>
         <span className="flex items-center gap-4">
           <button
@@ -793,7 +801,7 @@ export default function BrewHistory({
             aria-pressed={expandAll}
           >
             {expandAll ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            {expandAll ? "Collapse all" : "Expand all"}
+            {expandAll ? t("history.collapseAll") : t("history.expandAll")}
           </button>
           <button
             type="button"
@@ -808,7 +816,7 @@ export default function BrewHistory({
             style={{ fontFamily: MONO, color: TOKENS.inkFaint, letterSpacing: "0.1em" }}
           >
             <RefreshCw size={11} />
-            Refresh
+            {t("history.refresh")}
           </button>
         </span>
       </div>
@@ -818,7 +826,7 @@ export default function BrewHistory({
           className="py-10 text-center text-[14px]"
           style={{ fontFamily: SERIF, color: TOKENS.inkFaint }}
         >
-          No brews match those filters.
+          {t("history.noMatch")}
         </p>
       ) : (
       <ul className="flex flex-col gap-3">

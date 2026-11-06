@@ -37,12 +37,17 @@ export function joinSeconds(minutes, seconds) {
 // Brews over an hour read as hours instead: "720:00" is technically right
 // but nobody thinks in 720 minutes, and a cold brew's whole point is the
 // long steep.
-export function formatBrewTime(seconds) {
+export function formatBrewTime(seconds, units) {
   if (seconds == null) return null;
+  // The hour/minute letters are the only words in here, and they're the one
+  // thing that changes between languages (h/m vs j/m in Bahasa). Defaults keep
+  // this function callable from tests and anywhere without a language.
+  const hUnit = units?.h ?? "h";
+  const mUnit = units?.m ?? "m";
   if (seconds >= 3600) {
     const h = Math.floor(seconds / 3600);
     const m = Math.round((seconds % 3600) / 60);
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+    return m === 0 ? `${h}${hUnit}` : `${h}${hUnit} ${m}${mUnit}`;
   }
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -181,10 +186,10 @@ export function pourTotal(pours = []) {
 }
 
 /** "0:00 50g · 0:45 100g · 1:30 100g", or null when there's no schedule. */
-export function poursLabel(brew) {
+export function poursLabel(brew, units) {
   const parts = (Array.isArray(brew?.pours) ? brew.pours : [])
     .map((p) =>
-      [formatBrewTime(p?.time_s), p?.water_g == null ? null : `${p.water_g}g`]
+      [formatBrewTime(p?.time_s, units), p?.water_g == null ? null : `${p.water_g}g`]
         .filter(Boolean)
         .join(" "),
     )
@@ -268,25 +273,33 @@ export function beansLabel(brew) {
 
 // "Greenfields · Fresh Milk", or just whichever half was filled in. Null when
 // there's no milk, so callers can hide the line entirely.
-export function milkLabel(brew) {
-  const parts = [brew?.milk_brand, brew?.milk_type].map((p) => p?.trim()).filter(Boolean);
+export function milkLabel(brew, presetLabel) {
+  // Brand is free text; the kind is a stored preset ("Fresh Milk"), so it's
+  // translated for display only — pass presetLabel from the render site.
+  const brand = brew?.milk_brand?.trim();
+  const kind = brew?.milk_type?.trim();
+  const parts = [brand, kind && presetLabel ? presetLabel(kind) : kind].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
 
 // "18 clicks", or just "18" if no unit was recorded. Null when there's no
 // grind size, so callers can omit the field.
-export function grindLabel(brew) {
+export function grindLabel(brew, unitLabel) {
   if (brew?.grind_size == null) return null;
-  const unit = brew.grind_unit?.trim();
+  const raw = brew.grind_unit?.trim();
+  // Unit words are stored values ("clicks"), so they're translated for display
+  // only — pass presetLabel from the render site. Unknown units pass through.
+  const unit = raw && unitLabel ? unitLabel(raw) : raw;
   return unit ? `${brew.grind_size} ${unit}` : String(brew.grind_size);
 }
 
 // "+3 clicks" for the grinder's micro-adjustment dial, or null when the brew
 // doesn't record one. The sign is part of the meaning — a micro-adjustment
 // of -2 clicks is finer than the base setting, +2 is coarser.
-export function microAdjustLabel(brew) {
+export function microAdjustLabel(brew, unitLabel) {
   if (brew?.micro_adjustment == null) return null;
-  const unit = brew.micro_adjustment_unit?.trim();
+  const raw = brew.micro_adjustment_unit?.trim();
+  const unit = raw && unitLabel ? unitLabel(raw) : raw;
   const value = String(brew.micro_adjustment);
   const signed = value.startsWith("-") ? value : `+${value}`;
   return unit ? `${signed} ${unit}` : signed;
