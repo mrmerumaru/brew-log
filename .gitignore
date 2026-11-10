@@ -17,6 +17,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Security audit output — local only. The findings describe exactly how to
+# attack this app, so they stay on your machine, never in the repo or a build.
+security-audit.csv
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
