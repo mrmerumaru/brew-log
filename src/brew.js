@@ -90,16 +90,6 @@ export function joinHours(hours) {
   return Math.round(h * 3600);
 }
 
-// The implementation guides hardcode ".jpg"; derive the real extension so a
-// PNG or HEIC upload isn't stored under a misleading name.
-export function fileExtension(file) {
-  const fromName = file?.name?.includes(".") ? file.name.split(".").pop() : null;
-  if (fromName && /^[a-z0-9]{1,5}$/i.test(fromName)) return fromName.toLowerCase();
-  const fromType = file?.type?.split("/")[1];
-  if (fromType && /^[a-z0-9]{1,5}$/i.test(fromType)) return fromType.toLowerCase();
-  return "jpg";
-}
-
 // An empty date input yields "", which Postgres rejects for a date column.
 export function dateOrNull(value) {
   const trimmed = typeof value === "string" ? value.trim() : "";

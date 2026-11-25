@@ -51,14 +51,13 @@ import {
   CARRY_KEYS,
   microAdjustmentState,
   microAdjustmentUnitToSave,
-  fileExtension,
   num,
   dateOrNull,
   isObjectUrl,
 } from "./brew";
 import ShareSheet from "./ShareSheet";
 import { APP_ICON } from "./env";
-import { compressPhoto, compressThumbnail } from "./image";
+import { compressPhoto, compressThumbnail, isLikelyImage, PhotoRejectedError } from "./image";
 import { t, useLang, presetLabel } from "./i18n";
 import {
   MAX_CUSTOM_FLAVORS,
@@ -716,6 +715,16 @@ export default function BrewForm({
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // The accept attribute is a hint, not a control — a renamed file still
+    // arrives here. Refuse anything that does not even declare itself as an
+    // image, so the preview and the encoder never see it.
+    if (!isLikelyImage(file)) {
+      e.target.value = "";
+      setError(t("form.err.photoType"));
+      return;
+    }
+
     if (isObjectUrl(photo)) URL.revokeObjectURL(photo);
     setPhoto(URL.createObjectURL(file));
     setPhotoFile(file); // the preview URL can't be uploaded — keep the File too
@@ -858,14 +867,25 @@ export default function BrewForm({
 
       if (photoFile) {
         // Resize before upload — originals are 3-5 MB and would fill the free
-        // storage tier within a couple of hundred photos. Always returns
-        // something uploadable, falling back to the original file if it can't
-        // be re-encoded, so a photo is never lost to a failed compression.
-        uploaded = await compressPhoto(photoFile, fileExtension(photoFile));
+        // storage tier within a couple of hundred photos. What comes back is
+        // always a JPEG this app encoded itself, so the user's filename
+        // extension, MIME type and EXIF block never reach the bucket. A format
+        // this browser cannot decode (HEIC on Chrome, typically) is refused
+        // with a message: the brew still saves, without the photo.
+        try {
+          uploaded = await compressPhoto(photoFile);
+        } catch (err) {
+          if (!(err instanceof PhotoRejectedError)) throw err;
+          console.info("Photo upload refused:", err.code);
+          setError(t("form.err.photoFormat", { verb }));
+        }
+      }
+
+      if (uploaded) {
         console.info("Photo upload:", uploaded.note ?? "prepared");
 
-        // The extension has to follow what was actually encoded: a resized PNG
-        // leaves here as a JPEG, and storing it as .png would mislabel it.
+        // Extension and content type are fixed by image.js — they describe the
+        // bytes it produced, not the name the file arrived under.
         const path = `${user.id}/${row.id}.${uploaded.ext}`;
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
@@ -907,7 +927,14 @@ export default function BrewForm({
         // fetches via signed URL. Best-effort, not on the success path: a thumb
         // failure shouldn't lose the brew — the History view will simply
         // show the no-photo state until the brew is edited again.
-        const thumb = await compressThumbnail(photoFile, fileExtension(photoFile));
+        let thumb = null;
+        try {
+          thumb = await compressThumbnail(photoFile);
+        } catch (err) {
+          // The full photo is already stored; a refused thumbnail just leaves
+          // History in its no-thumbnail state.
+          console.info("Thumb refused:", err?.code ?? err?.message);
+        }
         console.info("Thumb upload:", thumb?.note ?? "no result");
         if (thumb) {
           const thumbPath = `${user.id}/${row.id}.thumb.jpg`;
