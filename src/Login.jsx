@@ -5,6 +5,7 @@ import { TOKENS, SANS, SERIF } from "./tokens";
 import { APP_ICON } from "./env";
 import LanguageToggle from "./LanguageToggle";
 import { t, useLang } from "./i18n";
+import { errorMessageKey, logError } from "./errors";
 
 // Google's brand mark. Inline rather than a remote asset so it works offline
 // and can't be blocked.
@@ -56,7 +57,8 @@ export default function Login() {
     });
 
     if (oauthError) {
-      setError(oauthError.message);
+      logError("login.oauth", oauthError);
+      setError(t(errorMessageKey(oauthError)));
       setLoading(false);
     }
   };

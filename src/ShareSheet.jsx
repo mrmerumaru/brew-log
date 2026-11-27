@@ -82,7 +82,8 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       // React bails out when the value is unchanged, so this can't loop.
       setCanPan((prev) => (prev === next ? prev : next));
     } catch (err) {
-      setError(t("share.err.draw", { msg: err?.message ?? err }));
+      logError("share.draw", err);
+      setError(t("share.err.draw", { msg: t(errorMessageKey(err)) }));
     }
   }, [brew, img, ratio, transform, loading, cardW, cardH]);
 
@@ -151,7 +152,8 @@ export default function ShareSheet({ brew, photoBlob, onClose }) {
       // 'cancelled' means the user dismissed the OS sheet: stay open so they
       // can adjust and try again rather than starting over.
     } catch (err) {
-      setError(t("share.err.share", { msg: err?.message ?? err }));
+      logError("share.share", err);
+      setError(t("share.err.share", { msg: t(errorMessageKey(err)) }));
     } finally {
       setSending(false);
     }

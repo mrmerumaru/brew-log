@@ -60,6 +60,7 @@ import ShareSheet from "./ShareSheet";
 import { APP_ICON } from "./env";
 import { compressPhoto, compressThumbnail, isLikelyImage, PhotoRejectedError } from "./image";
 import { t, useLang, presetLabel } from "./i18n";
+import { errorMessageKey, logError } from "./errors";
 import {
   MAX_CUSTOM_FLAVORS,
   addCustom,
@@ -857,7 +858,8 @@ export default function BrewForm({
             .single();
 
       if (writeError) {
-        setError(writeError.message);
+        logError("brew.save", writeError);
+        setError(t(errorMessageKey(writeError)));
         return;
       }
 
@@ -899,7 +901,8 @@ export default function BrewForm({
 
         if (uploadError) {
           // The brew row is already written — say so rather than implying total failure.
-          setError(t("form.err.photoUpload", { verb, msg: uploadError.message }));
+          logError("brew.photoUpload", uploadError);
+          setError(t("form.err.photoUpload", { verb, msg: t(errorMessageKey(uploadError)) }));
           onSaved?.();
           return;
         }
@@ -918,7 +921,8 @@ export default function BrewForm({
             .eq("id", row.id);
 
           if (pathError) {
-            setError(t("form.err.photoLink", { verb, msg: pathError.message }));
+            logError("brew.photoLink", pathError);
+            setError(t("form.err.photoLink", { verb, msg: t(errorMessageKey(pathError)) }));
             onSaved?.();
             return;
           }
@@ -948,7 +952,8 @@ export default function BrewForm({
 
           if (thumbError) {
             // Original saved fine — just say so.
-            setError(t("form.err.thumb", { verb, msg: thumbError.message }));
+            logError("brew.thumbUpload", thumbError);
+            setError(t("form.err.thumb", { verb, msg: t(errorMessageKey(thumbError)) }));
           } else {
             const previousThumbPath = isEditing ? brew.thumb_path : null;
             if (previousThumbPath && previousThumbPath !== thumbPath) {
@@ -961,7 +966,8 @@ export default function BrewForm({
                 .eq("id", row.id);
 
               if (thumbPathError) {
-                setError(t("form.err.thumbLink", { verb, msg: thumbPathError.message }));
+                logError("brew.thumbLink", thumbPathError);
+                setError(t("form.err.thumbLink", { verb, msg: t(errorMessageKey(thumbPathError)) }));
               }
             }
           }
@@ -983,7 +989,8 @@ export default function BrewForm({
       resetAfterSave(row);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError(err?.message ?? t("form.err.save"));
+      logError("brew.save.thrown", err);
+      setError(t("form.err.save"));
     } finally {
       setSaving(false);
     }

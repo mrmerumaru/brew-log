@@ -1,6 +1,7 @@
 import React from "react";
 import { TOKENS, SANS, MONO, SERIF } from "./tokens";
 import { t } from "./i18n";
+import { IS_PRODUCTION } from "./env";
 
 /**
  * Without this, a thrown render error unmounts the whole React tree and leaves
@@ -57,19 +58,25 @@ export default class ErrorBoundary extends React.Component {
             {t("error.body")}
           </p>
 
-          <p
-            className="mb-5 p-3 rounded-sm text-[12px]"
-            style={{
-              fontFamily: MONO,
-              color: TOKENS.red,
-              background: TOKENS.paper,
-              border: `1px solid ${TOKENS.rule}`,
-              overflowWrap: "anywhere",
-            }}
-          >
-            {error.name ? `${error.name}: ` : ""}
-            {error.message || String(error)}
-          </p>
+          {/* A crash message is a debugging aid, not user-facing copy: it can
+              name components and internal paths. Keep it in local dev and on
+              preview builds (which is where it earns its place) and show only
+              the generic body to real users. */}
+          {!IS_PRODUCTION && (
+            <p
+              className="mb-5 p-3 rounded-sm text-[12px]"
+              style={{
+                fontFamily: MONO,
+                color: TOKENS.red,
+                background: TOKENS.paper,
+                border: `1px solid ${TOKENS.rule}`,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {error.name ? `${error.name}: ` : ""}
+              {error.message || String(error)}
+            </p>
+          )}
 
           <button
             type="button"
@@ -85,7 +92,7 @@ export default class ErrorBoundary extends React.Component {
             {t("error.reload")}
           </button>
 
-          {stack && (
+          {!IS_PRODUCTION && stack && (
             <details className="mt-5">
               <summary
                 className="text-[10px] uppercase tracking-[0.08em] cursor-pointer"

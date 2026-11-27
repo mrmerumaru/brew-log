@@ -14,15 +14,26 @@ import {
   originLabel,
 } from "./brew";
 import { t, useLang, presetLabel, localeTag, brewName } from "./i18n";
+import { errorMessageKey, logError } from "./errors";
 import ShareSheet from "./ShareSheet";
 import { shouldExpand, tapCard, toggleExpandAll } from "./brewHistoryExpand";
 import {
   thumbLookupPath,
   lookupThumbUrl,
   shouldSignOnLazy,
+  pathsNeedingRefresh,
 } from "./brewPhoto";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — plenty for a browsing session
+// Signed URLs are bearer tokens: anyone holding one can fetch the photo until
+// it expires, with no further auth. History only ever renders thumbnails at
+// 56-72px, so they need a much shorter life than the full-size photo, which is
+// only signed long enough to open the share card. Short TTLs also shrink the
+// window in which a URL copied out of devtools is still usable.
+const THUMB_URL_TTL_SECONDS = 15 * 60; // 15 minutes
+const PHOTO_URL_TTL_SECONDS = 60 * 60; // 1 hour, share/download only
+// Re-sign this long before expiry, so a tab left open never shows a broken
+// image. Comfortably longer than one lazy-signing pass.
+const URL_REFRESH_SLACK_MS = 2 * 60 * 1000; // 2 minutes
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -579,14 +590,26 @@ export default function BrewHistory({
   // pre-signs a little ahead of the user so scrolling feels instant.
   const signPath = useCallback(
     async (path, bucket) => {
+      // Thumbs are what History renders, so they get the short TTL; the full
+      // bucket is only used if a brew has no thumb (a pre-thumbnail row).
+      const ttl = bucket === THUMB_BUCKET ? THUMB_URL_TTL_SECONDS : PHOTO_URL_TTL_SECONDS;
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrls([path], SIGNED_URL_TTL_SECONDS);
+        .createSignedUrls([path], ttl);
 
-      if (error || !data || !data[0]?.signedUrl || data[0]?.error) return;
+      if (error || !data || !data[0]?.signedUrl || data[0]?.error) {
+        if (error) logError("history.signUrl", error);
+        return;
+      }
 
       const url = data[0].signedUrl;
-      setPhotoUrls((prev) => (prev[path] === url ? prev : { ...prev, [path]: url }));
+      // Track the deadline alongside the URL so the refresh effect below can
+      // re-sign before the token dies rather than after the image breaks.
+      const expiresAt = Date.now() + ttl * 1000;
+      setPhotoUrls((prev) => {
+        if (prev[path]?.url === url) return prev;
+        return { ...prev, [path]: { url, expiresAt } };
+      });
     },
     [],
   );
@@ -667,6 +690,29 @@ export default function BrewHistory({
     }
   }, [visibleWindow, brews, photoUrls, signPath, isLoading]);
 
+  // Keep the URLs of on-screen brews alive. A 15-minute thumb token would
+  // otherwise break the list for anyone who leaves History open longer than
+  // that — the short TTL is only safe because this re-signs ahead of expiry.
+  useEffect(() => {
+    if (isLoading) return undefined;
+
+    const visiblePaths = brews
+      .filter((_, i) => shouldSignOnLazy(i, visibleWindow.highest, visibleWindow.lowest))
+      .map((b) => thumbLookupPath(b));
+
+    const refresh = () => {
+      const stale = pathsNeedingRefresh(photoUrls, visiblePaths, Date.now(), URL_REFRESH_SLACK_MS);
+      for (const path of stale) {
+        const brew = brews.find((b) => thumbLookupPath(b) === path);
+        if (brew) signPath(path, brew.thumb_path ? THUMB_BUCKET : PHOTO_BUCKET);
+      }
+    };
+
+    refresh();
+    const timer = setInterval(refresh, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [brews, visibleWindow, photoUrls, signPath, isLoading]);
+
   // Fetch the photo, then hand off to ShareSheet for aspect choice and preview.
   const handleShare = useCallback(async (brew) => {
     setSharingId(brew.id);
@@ -685,7 +731,8 @@ export default function BrewHistory({
       }
       setShareTarget({ brew, photoBlob });
     } catch (err) {
-      setDeleteError(t("history.err.shareCard", { msg: err?.message ?? err }));
+      logError("history.shareCard", err);
+      setDeleteError(t("history.err.shareCard", { msg: t(errorMessageKey(err)) }));
     } finally {
       setSharingId(null);
     }
@@ -701,7 +748,8 @@ export default function BrewHistory({
     const { error: deleteError } = await supabase.from("brews").delete().eq("id", brew.id);
 
     if (deleteError) {
-      setDeleteError(t("history.err.delete", { msg: deleteError.message }));
+      logError("history.delete", deleteError);
+      setDeleteError(t("history.err.delete", { msg: t(errorMessageKey(deleteError)) }));
       setDeletingId(null);
       return;
     }
@@ -717,7 +765,8 @@ export default function BrewHistory({
         .remove([brew.photo_path]);
 
       if (storageError) {
-        setDeleteError(t("history.err.photoLeft", { msg: storageError.message }));
+        logError("history.photoLeft", storageError);
+        setDeleteError(t("history.err.photoLeft", { msg: t(errorMessageKey(storageError)) }));
       }
     }
 
@@ -728,7 +777,8 @@ export default function BrewHistory({
         .remove([brew.thumb_path]);
 
       if (thumbError) {
-        setDeleteError(t("history.err.thumbLeft", { msg: thumbError.message }));
+        logError("history.thumbLeft", thumbError);
+          setDeleteError(t("history.err.thumbLeft", { msg: t(errorMessageKey(thumbError)) }));
       }
     }
 

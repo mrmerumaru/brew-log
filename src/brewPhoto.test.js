@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { thumbLookupPath, lookupThumbUrl, shouldSignOnLazy } from "./brewPhoto";
+import {
+  thumbLookupPath,
+  lookupThumbUrl,
+  shouldSignOnLazy,
+  pathsNeedingRefresh,
+} from "./brewPhoto";
 
 describe("thumbLookupPath", () => {
   it("returns thumb_path when present", () => {
@@ -24,26 +29,70 @@ describe("thumbLookupPath", () => {
 });
 
 describe("lookupThumbUrl", () => {
+  const NOW = 1_000_000;
+  const future = { url: "https://signed/x", expiresAt: NOW + 60_000 };
+
   it("returns the cached signed URL for the thumb path", () => {
-    const cache = { "u/b.thumb.jpg": "https://signed/u/b.thumb.jpg" };
+    const cache = { "u/b.thumb.jpg": future };
     expect(
-      lookupThumbUrl(cache, { thumb_path: "u/b.thumb.jpg", photo_path: "u/b.jpg" })
-    ).toBe("https://signed/u/b.thumb.jpg");
+      lookupThumbUrl(cache, { thumb_path: "u/b.thumb.jpg", photo_path: "u/b.jpg" }, NOW)
+    ).toBe("https://signed/x");
   });
 
   it("falls back to the photo_path URL when there's no thumb", () => {
-    const cache = { "u/b.jpg": "https://signed/u/b.jpg" };
-    expect(lookupThumbUrl(cache, { thumb_path: null, photo_path: "u/b.jpg" }))
-      .toBe("https://signed/u/b.jpg");
+    const cache = { "u/b.jpg": future };
+    expect(lookupThumbUrl(cache, { thumb_path: null, photo_path: "u/b.jpg" }, NOW))
+      .toBe("https://signed/x");
   });
 
   it("returns null when nothing has been signed yet", () => {
-    expect(lookupThumbUrl({}, { thumb_path: "u/b.thumb.jpg", photo_path: "u/b.jpg" }))
+    expect(lookupThumbUrl({}, { thumb_path: "u/b.thumb.jpg", photo_path: "u/b.jpg" }, NOW))
       .toBe(null);
   });
 
   it("returns null when the brew has no photo at all", () => {
-    expect(lookupThumbUrl({ "x": "y" }, {})).toBe(null);
+    expect(lookupThumbUrl({ x: future }, {}, NOW)).toBe(null);
+  });
+
+  it("hides an entry that has already expired", () => {
+    // A dead URL renders as a broken image, which looks worse than the
+    // placeholder — so expiry is treated as absent.
+    const cache = { "u/b.thumb.jpg": { url: "https://signed/dead", expiresAt: NOW - 1 } };
+    expect(lookupThumbUrl(cache, { thumb_path: "u/b.thumb.jpg" }, NOW)).toBe(null);
+  });
+
+  it("treats an entry with no deadline as usable", () => {
+    const cache = { "u/b.thumb.jpg": { url: "https://signed/x" } };
+    expect(lookupThumbUrl(cache, { thumb_path: "u/b.thumb.jpg" }, NOW)).toBe("https://signed/x");
+  });
+});
+
+describe("pathsNeedingRefresh", () => {
+  const NOW = 5_000_000;
+  const SLACK = 120_000;
+
+  it("asks for paths that were never signed", () => {
+    expect(pathsNeedingRefresh({}, ["a", "b"], NOW, SLACK)).toEqual(["a", "b"]);
+  });
+
+  it("leaves a comfortably fresh URL alone", () => {
+    const cache = { a: { url: "u", expiresAt: NOW + 10 * 60_000 } };
+    expect(pathsNeedingRefresh(cache, ["a"], NOW, SLACK)).toEqual([]);
+  });
+
+  it("refreshes inside the slack window, before the URL actually dies", () => {
+    const cache = { a: { url: "u", expiresAt: NOW + 60_000 } };
+    expect(pathsNeedingRefresh(cache, ["a"], NOW, SLACK)).toEqual(["a"]);
+  });
+
+  it("refreshes an already-expired URL", () => {
+    const cache = { a: { url: "u", expiresAt: NOW - 1 } };
+    expect(pathsNeedingRefresh(cache, ["a"], NOW, SLACK)).toEqual(["a"]);
+  });
+
+  it("ignores empty paths and preserves input order", () => {
+    const cache = { b: { url: "u", expiresAt: NOW - 1 } };
+    expect(pathsNeedingRefresh(cache, [null, "b", "", "c"], NOW, SLACK)).toEqual(["b", "c"]);
   });
 });
 
