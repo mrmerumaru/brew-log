@@ -34,6 +34,7 @@ import {
   splitHours,
   joinHours,
   usesHourTime,
+  outputFieldKey,
   sameMethod,
   componentsFromBrew,
   poursFromBrew,
@@ -1347,7 +1348,7 @@ export default function BrewForm({
               inputMode="decimal"
             />
             <Field
-              label={t("field.water")}
+              label={t(outputFieldKey(method))}
               value={water}
               onChange={setWater}
               mono

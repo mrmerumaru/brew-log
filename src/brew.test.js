@@ -1,5 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { pickCarryForward, sameMethod } from "./brew";
+import { pickCarryForward, sameMethod, outputFieldKey } from "./brew";
+
+describe("outputFieldKey", () => {
+  it("calls espresso output a yield, not water", () => {
+    expect(outputFieldKey("Espresso")).toBe("field.yield");
+  });
+
+  it("matches a hand-typed espresso in the Other field", () => {
+    expect(outputFieldKey("espresso")).toBe("field.yield");
+    expect(outputFieldKey("  ESPRESSO ")).toBe("field.yield");
+  });
+
+  it("leaves every other method on water", () => {
+    expect(outputFieldKey("Pourover")).toBe("field.water");
+    expect(outputFieldKey("Moka Pot")).toBe("field.water");
+    expect(outputFieldKey("Cold Brew")).toBe("field.water");
+    expect(outputFieldKey("Espresso Martini")).toBe("field.water");
+  });
+
+  it("falls back to water when the method is missing", () => {
+    expect(outputFieldKey(null)).toBe("field.water");
+    expect(outputFieldKey(undefined)).toBe("field.water");
+    expect(outputFieldKey("")).toBe("field.water");
+  });
+});
 
 describe("sameMethod", () => {
   it("matches identical strings", () => {

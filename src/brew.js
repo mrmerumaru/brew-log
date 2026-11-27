@@ -69,6 +69,24 @@ export function usesHourTime(method) {
   return HOUR_METHODS.some((h) => h.toLowerCase() === m);
 }
 
+/**
+ * The label key for the second weight field, the one that used to just be
+ * "Water".
+ *
+ * Dose is always beans in. For espresso the number on the other side is the
+ * shot's yield: the water went in and the coffee came out, so filing the
+ * output under "water" describes the wrong thing. Every other method is brewed
+ * by adding water to the grounds and the total is genuinely the water, so the
+ * wording stays as it is.
+ *
+ * Matches case-insensitively, so a hand-typed "espresso" in the Other field
+ * behaves the same as the chip.
+ */
+export function outputFieldKey(method) {
+  const m = String(method ?? "").trim().toLowerCase();
+  return m === "espresso" ? "field.yield" : "field.water";
+}
+
 /** Seconds -> the hours field value (whole hours, rounded to 1dp). */
 export function splitHours(total) {
   if (total == null) return { timeHours: "" };
